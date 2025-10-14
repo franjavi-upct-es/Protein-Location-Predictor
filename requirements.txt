@@ -1,0 +1,11 @@
+pandas
+numpy
+requests
+scikit-learn
+matplotlib
+seaborn
+jupyterlab
+lightgbm
+torch
+transformers
+xgboost

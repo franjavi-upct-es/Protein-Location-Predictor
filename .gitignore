@@ -1,0 +1,90 @@
+# ================================
+# Python general
+# ================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ================================
+# Entornos virtuales
+# ================================
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+*.env
+*.envrc
+
+# ================================
+# Archivos temporales / caché
+# ================================
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.sqlite3
+*.db
+*.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.ipynb_checkpoints
+
+# ================================
+# Modelos, artefactos y datos
+# ================================
+models/
+data/
+notebooks/
+scripts/visualize_results.py
+*.pkl
+*.joblib
+*.csv
+*.xlsx
+*.parquet
+*.json
+
+
+# (Descomenta si quieres subir solo scripts y no resultados)
+# !models/README.md
+# !data/README.md
+
+# ================================
+# Streamlit & FastAPI
+# ================================
+.streamlit/
+# Logs o configuración local
+logs/
+*.uvicorn.log
+*.streamlit.log
+
+# ================================
+# Archivos del sistema
+# ================================
+.DS_Store
+*.tmp
+*.bak
+*.orig
+
+# ================================
+# Archivos de dependencias
+# ================================
+# (Ignora entornos automáticos de pip)
+pip-wheel-metadata/
+__pypackages__/
+
+# ================================
+# Archivos de Docker y CI/CD
+# ================================
+*.tar
+*.gz
+*.zip
+docker-compose.override.yml
