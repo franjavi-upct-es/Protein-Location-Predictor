@@ -24,7 +24,7 @@ def group_locations_hierarchical(label: str) -> str:
     if 'nucleus' in label_lower or 'nucleolus' in label_lower:
         return 'Nucleus'
     if 'mitochondrion' in label_lower or 'mitochondria' in label_lower:
-        return 'Mithochondrion'
+        return 'Mitochondrion'
     if 'endoplasmic reticulum' in label_lower:
         return 'Endoplasmic Reticulum'
     if 'golgi' in label_lower:
