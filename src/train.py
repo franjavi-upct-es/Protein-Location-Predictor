@@ -10,7 +10,7 @@ import os
 from model import build_model
 
 # Definimos las rutas a los archivos
-FEATURES_PATH = 'data/processed/embeddings.csv'
+FEATURES_PATH = 'data/processed/embeddings_with_kmers.csv'  # Características combinadas
 MODELS_DIR = 'models'
 MODEL_PATH = os.path.join(MODELS_DIR, 'protein_location_model.pkl')
 ENCODER_PATH = os.path.join(MODELS_DIR, 'label_encoder.pkl')
@@ -18,14 +18,29 @@ ENCODER_PATH = os.path.join(MODELS_DIR, 'label_encoder.pkl')
 def train():
     """
     Función principal para entrenar, evaluar y guardar el modelo.
+    Utiliza características combinadas (embeddings + k-mers).
     """
     # 1. Cargar datos
-    print("Cargando matriz de características")
+    print("Cargando características combinadas (embeddings + k-mers)...")
+    
+    # Verificar que el archivo existe
+    if not os.path.exists(FEATURES_PATH):
+        raise FileNotFoundError(
+            f"No se encontró el archivo: {FEATURES_PATH}\n"
+            "Por favor, ejecuta primero: python src/embedding_generator.py"
+        )
+    
+    print(f"Leyendo archivo: {FEATURES_PATH}")
     df = pd.read_csv(FEATURES_PATH)
+    
+    print(f"Datos cargados: {len(df)} muestras, {len(df.columns)} columnas totales")
 
     # 2. Preparar datos
     X = df.drop(columns=['accession', 'location_label'])
     y = df['location_label']
+    
+    print(f"Características de entrada: {X.shape[1]} dimensiones")
+    print(f"Clases de localización: {y.nunique()} ({', '.join(sorted(y.unique()))})")
 
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
@@ -65,6 +80,14 @@ def train():
 
     print(f"Modelo guardado en: {MODEL_PATH}")
     print(f"Codificador guardado en: {ENCODER_PATH}")
+    
+    return accuracy
 
 if __name__ == "__main__":
+    print("=" * 80)
+    print("🧬 ENTRENAMIENTO DEL MODELO DE LOCALIZACIÓN DE PROTEÍNAS 🧬")
+    print("=" * 80)
+    print("Usando características combinadas: Embeddings (ESM-2) + K-mers")
+    print("=" * 80)
+    
     train()

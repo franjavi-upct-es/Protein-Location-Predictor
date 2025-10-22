@@ -2,12 +2,19 @@ import pandas as pd
 import torch
 from transformers import EsmTokenizer, EsmModel
 import os
+import sys
+
+# Importar la función de feature engineering
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from feature_engineering import calculate_kmer_composition
 
 # --- CONFIGURACIÓN ---
 DATA_PATH = 'data/processed/uniprot_processed_data.csv'
 OUTPUT_PATH = 'data/processed/embeddings.csv'
+OUTPUT_COMBINED_PATH = 'data/processed/embeddings_with_kmers.csv'
 # Usaremos un modelo pequeño de ESM-2 para que sea manejable en un PC estándar
-MODEL_NAME = "facebook/esm2_t6_8M_UR50D"
+MODEL_NAME = "facebook/esm2_t33_650M_UR50D"
+KMER_SIZE = 2  # Tamaño de k-mers a usar
 
 def generate_embeddings():
     """
@@ -57,13 +64,37 @@ def generate_embeddings():
 
     # Creamos un DataFrame con los embeddings
     embedding_df = pd.DataFrame(embeddings)
+    
+    # Renombrar columnas de embeddings para mayor claridad
+    embedding_df.columns = [f'emb_{i}' for i in range(embedding_df.shape[1])]
 
     # Añadimos las etiquetas y el accession para referencia
     final_df = pd.concat([df[['accession', 'location_label']], embedding_df], axis=1)
 
-    # Guardamos el resultado
+    # Guardamos los embeddings
     final_df.to_csv(OUTPUT_PATH, index=False)
     print(f"Embeddings guardados en {OUTPUT_PATH}")
+    
+    # --- GENERAR K-MERS Y COMBINAR ---
+    print(f"\nGenerando características de k-mers (k={KMER_SIZE})...")
+    kmer_features = df['sequence'].apply(lambda seq: calculate_kmer_composition(seq, k=KMER_SIZE))
+    
+    # Renombrar columnas de k-mers para mayor claridad
+    kmer_features.columns = [f'kmer_{col}' for col in kmer_features.columns]
+    
+    print(f"K-mers generados: {kmer_features.shape[1]} características")
+    
+    # Combinar embeddings y k-mers
+    combined_df = pd.concat([
+        df[['accession', 'location_label']], 
+        embedding_df,
+        kmer_features
+    ], axis=1)
+    
+    # Guardar el dataset combinado
+    combined_df.to_csv(OUTPUT_COMBINED_PATH, index=False)
+    print(f"Dataset combinado (embeddings + k-mers) guardado en {OUTPUT_COMBINED_PATH}")
+    print(f"Total de características: {embedding_df.shape[1]} embeddings + {kmer_features.shape[1]} k-mers = {embedding_df.shape[1] + kmer_features.shape[1]}")
 
 if __name__ == '__main__':
     generate_embeddings()

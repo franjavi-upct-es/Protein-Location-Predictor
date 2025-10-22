@@ -1,3 +1,5 @@
+[![English](https://img.shields.io/badge/Language-English-blue.svg)](README.en.md)
+
 # 🧬 Predictor de Localización Subcelular de Proteínas
 
 Un proyecto end-to-end de Bioinformática y Machine Learning para predecir la ubicación de una proteína dentro de la célula basándose en su secuencia de aminoácidos.
