@@ -1,5 +1,6 @@
 import pandas as pd
 import torch
+import numpy as np
 from transformers import EsmTokenizer, EsmModel
 import os
 import sys
@@ -12,7 +13,6 @@ from feature_engineering import calculate_kmer_composition
 DATA_PATH = "data/processed/uniprot_processed_data.csv"
 OUTPUT_PATH = "data/processed/embeddings.csv"
 OUTPUT_COMBINED_PATH = "data/processed/embeddings_with_kmers.csv"
-# Usaremos un modelo pequeño de ESM-2 para que sea manejable en un PC estándar
 MODEL_NAME = "facebook/esm2_t33_650M_UR50D"
 KMER_SIZE = 3  # Tamaño de k-mers a usar
 
@@ -29,14 +29,12 @@ def generate_embeddings():
     tokenizer = EsmTokenizer.from_pretrained(MODEL_NAME)
     model = EsmModel.from_pretrained(MODEL_NAME)
 
-    # Si tienes una GPU compatible con CUDA o Metal (Apple Silicon), la usaremos para acelerar el proceso
     device = torch.device(
         "cuda"
         if torch.cuda.is_available()
         else ("mps" if torch.backends.mps.is_available() else "cpu")
     )
     model = model.to(device)
-
     print(f"Usando el dispositivo: {device}")
 
     embeddings = []
@@ -65,9 +63,16 @@ def generate_embeddings():
         # Obtenemos los embeddings y calculamos una representación de toda la secuencia
         # promediando los embeddings de todos sus aminoácidos.
         for seq_embedding in outputs.last_hidden_state:
-            # Movemos el tensor de vuelta a la CPU para los cálculos con numpy
+            # 1. Token CLS: Representación global aprendida por el modelo
+            cls_embedding = seq_embedding[0].cpu().numpy()
+
+            # 2. Mean Pooling: Promedio de todos los aminoácidos
             mean_embedding = seq_embedding.mean(dim=0).cpu().numpy()
-            embeddings.append(mean_embedding)
+
+            # 3. Concatenación: Unimos ambos vectores para mayor riqueza de información
+            combined_embedding = np.concatenate([cls_embedding, mean_embedding])
+
+            embeddings.append(combined_embedding)
 
         print(
             f"Procesado lote {i // batch_size + 1}/{(len(sequences) - 1) // batch_size + 1}"
@@ -97,8 +102,6 @@ def generate_embeddings():
     # Renombrar columnas de k-mers para mayor claridad
     kmer_features.columns = [f"kmer_{col}" for col in kmer_features.columns]
 
-    print(f"K-mers generados: {kmer_features.shape[1]} características")
-
     # Combinar embeddings y k-mers
     combined_df = pd.concat(
         [df[["accession", "location_label"]], embedding_df, kmer_features], axis=1
@@ -114,4 +117,3 @@ def generate_embeddings():
 
 if __name__ == "__main__":
     generate_embeddings()
-
