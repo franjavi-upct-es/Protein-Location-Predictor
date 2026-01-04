@@ -41,10 +41,6 @@ Thumbs.db
 # ================================
 # Modelos, artefactos y datos
 # ================================
-models/
-data/
-notebooks/
-scripts/visualize_results.py
 *.pkl
 *.joblib
 *.csv
@@ -63,6 +59,7 @@ scripts/visualize_results.py
 .streamlit/
 # Logs o configuración local
 logs/
+data/
 *.uvicorn.log
 *.streamlit.log
 
@@ -88,3 +85,5 @@ __pypackages__/
 *.gz
 *.zip
 docker-compose.override.yml
+.python-version
+uv.lock

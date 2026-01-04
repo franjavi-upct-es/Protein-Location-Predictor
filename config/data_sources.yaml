@@ -1,0 +1,63 @@
+# config/data_sources.yaml
+uniprot:
+  api_url: "https://rest.uniprot.org/uniprotkb/stream"
+  organisms:
+    - taxonomy_id: 9606
+      name: "Homo sapiens"
+      weight: 0.4
+    - taxonomy_id: 10090
+      name: "Mus musculus"
+      weight: 0.2
+    - taxonomy_id: 559292
+      name: "Saccharomyces cerevisiae"
+      weight: 0.2
+    - taxonomy_id: 83333
+      name: "Escherichia coli"
+      weight: 0.1
+    - taxonomy_id: 3702
+      name: "Arabidopsis thaliana"
+      weight: 0.1
+
+  query_filters:
+    - "reviewed:true"
+    - "cc_subcellular_location:*"
+
+  fields:
+    - "accession"
+    - "sequence"
+    - "cc_subcellular_location"
+    - "organism_name"
+    - "gene_names"
+    - "length"
+
+  batch_size: 500
+  max_results: 50000 # -1 for unlimited
+
+yeastgenome:
+  api_url: "https://www.yeastgenome.org/webservice"
+  batch_size: 100
+
+ypl_plus:
+  download_url: "https://ypl.epfl.ch/data/YPL.db2"
+  version: "2.0"
+
+data_splitting:
+  method: "graphpart" # or "random" for baseline
+  similarity_threshold: 0.30 # Maximum sequence identity between train/test
+  test_size: 0.15
+  val_size: 0.15
+
+  stratify_by:
+    - "location_label"
+    - "organism"
+
+data_quality:
+  min_sequence_length: 30
+  max_sequence_length: 5000
+  remove_fragments: true
+  remove_duplicates: true
+
+  min_samples_per_class: 20
+
+  ambiguous_locations:
+    action: "multi_label" # or "discard", "group"

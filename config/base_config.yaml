@@ -1,0 +1,30 @@
+# config/base_config.yaml
+project:
+  name: "protein-localization-v2"
+  version: "2.0.0"
+  description: "Hierachical Multi-Label Protein Sucellular Localization Predictor"
+
+paths:
+  data:
+    raw: "data/raw"
+    interim: "data/interim"
+    processed: "data/processed"
+    external: "data/external"
+    partitions: "data/partitions"
+
+  models:
+    checkpoints: "models/checkpoints"
+    final: "models/final"
+    pretrained: "models/pretrained"
+
+  reports:
+    figures: "reports/figures"
+    metrics: "reports/metrics"
+    logs: "reports/experiment_logs"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/app.log"
+
+random_sed: 42

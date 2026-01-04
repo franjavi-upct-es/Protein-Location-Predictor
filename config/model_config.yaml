@@ -1,0 +1,88 @@
+# config/model_config.yaml
+hierarchical_structure:
+  level1:
+    name: "secretory_pathway"
+    description: "Binary decision: Secretory vs Non-Secretory"
+    classes: ["secretory", "non_secretory"]
+
+  level2:
+    secretory:
+      name: "secretory_compartments"
+      classes:
+        - "Endoplasmic Reticulum"
+        - "Golgi Apparatus"
+        - "Vacuole"
+        - "Secreted/Extracellular"
+
+    non_secretory:
+      name: "organelles"
+      classes:
+        - "Nucleus"
+        - "Mitochondrion"
+        - "Cytoplasm"
+        - "Peroxisome"
+
+  special:
+    - name: "Membrane"
+      description: "Can appear in both branches"
+      independent: true
+
+label_mapping:
+  # Original label -> Hierarchical structure
+  "Endoplasmic Reticulum":
+    level1: "secretory"
+    level2: "secretory"
+    level3: "Endoplasmic Reticulum"
+
+  "Golgi Apparatus":
+    level1: "secretory"
+    level2: "secretory"
+    level3: "Golgi Apparatus"
+
+  "Vacuole":
+    level1: "secretory"
+    level2: "secretory"
+    level3: "Vacuole"
+
+  "Secreted/Extracellular":
+    level1: "secretory"
+    level2: "secretory"
+    level3: "Secreted/Extracellular"
+
+  "Nucleus":
+    level1: "non_secretory"
+    level2: "non_secretory"
+    level3: "Nucleus"
+
+  "Mitochondrion":
+    level1: "non_secretory"
+    level2: "non_secretory"
+    level3: "Mitochondrion"
+
+  "Cytoplasm":
+    level1: "non_secretory"
+    level2: "non_secretory"
+    level3: "Cytoplasm"
+
+  "Peroxisome":
+    level1: "non_secretory"
+    level2: "non_secretory"
+    level3: "Peroxisome"
+
+  "Membrane":
+    level1: "both"
+    level2: "special"
+    level3: "Membrane"
+
+multi_label_rules:
+  # Define valid co-occurrences
+  allowed_combinations:
+    - ["Nucleus", "Cytoplasm"]
+    - ["Endoplasmic Reticulum", "Membrane"]
+    - ["Golgi Apparatus", "Membrane"]
+    - ["Mitochondrion", "Membrane"]
+
+  # Impossible combinations (biological constraints)
+  forbidden_combinations:
+    - ["Secreted/Extracellular", "Nucleus"]
+    - ["Vacuole", "Mitochondrion"]

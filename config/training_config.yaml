@@ -1,0 +1,154 @@
+# config/training_config.yaml
+model:
+  architecture: "hierarchical_esm2_lora"
+  backbone: "facebook/esm2_t33_650M_UR50D"
+
+  # Memory optimization for GPUs with low memory (<16GB VRAM)
+  memory_optimization:
+    use_bfloat16: true # Native support on Blackwell architecture
+    gradient_chekpointing: true # Trades compute for memory
+    cpu_offload: false # Enable if still OOM
+    max_sequence_length: 1022 # ESM-2 max (don't reduce unless necessary)
+
+  lora:
+    enabled: true
+    r: 16 # Can increase to 32 if memory allows
+    alpha: 32
+    dropout: 0.1
+    target_modules: ["query", "key", "value", "dense"]
+    bias: "none"
+
+  freeze_layers:
+    embeddings: false # Don't freeze layers (unless necessary)
+    encoder_layers: 0 # Train all layers
+
+features:
+  sequence:
+    esm2_embeddings: true
+    kmer_size: 3
+    use_dieptides: false
+
+  singal_peptides:
+    signalp:
+      enabled: true
+      version: "6.0"
+      organism: "eukarya"
+    twhmm:
+      enabled: true
+      version: "2.0"
+
+  evolutionary:
+    pssm:
+      enabled: true
+      database: "uniref50"
+      iterations: 2
+      evalue: 0.001
+    msa:
+      enabled: false # Resource intesive
+
+  structural:
+    esmfold:
+      enabled: false # Very resource intensive
+      cache_predictions: true
+    gnn:
+      enabled: false
+      contact_threshold: 8.0 # Angstroms
+
+  functional:
+    go_embeddings:
+      enabled: true
+      exclude_cellular_component: true
+      embedding_dim: 64
+
+training:
+  max_epochs: 50
+
+  # Dynamic batch sizing base on available VRAM
+  batch_size: 8
+  accumulate_grad_batched: 8
+
+  # Enable if batch_size=8 still causes OOM
+  dynamic_batch_size:
+    enabled: true
+    min_batch_size: 4
+    max_batch_size: 16
+    auto_scale_factor: 2
+
+  optimizer:
+    name: "AdamW"
+    lr: 2e-4
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    # Use fused optimizer for 10-15% speedup on Blackwell
+    fused: true
+
+  scheduler:
+    name: "CosineAnnealingWarmRestarts"
+    T_0: 10
+    T_mult: 2
+    eta_min: 1e-6
+
+  loss:
+    type: "focal" # or "bce", "hierarchical"
+    focal_alpha: 0.25
+    focal_gamma: 2.0
+
+    hierarchical_weights:
+      level1: 1.0
+      level2: 0.8
+      level3: 0.6
+
+  class_weights:
+    method: "balanced" # or "effective_samples"
+    effective_num_beta: 0.9999
+
+  early_stopping:
+    enabled: true
+    monitor: "val/mcc"
+    patience: 10
+    mode: "max"
+
+  checkpoint:
+    monitor: "val/f1_macro"
+    mode: "max"
+    save_top_k: 3
+
+augmentation:
+  blosum62:
+    enabled: true
+    mutation_rate: 0.05 # 5% of residues
+    apply_to_minority: true
+
+  msa_subsampling:
+    enabled: false
+    sequences_per_protein: 5
+
+hardware:
+  accelerator: "auto" # cuda, cpu, mps
+  devices: 1
+  precision: "bf16-mixed" # bfloat16 for Blackwell
+  # Use "16-mixed" for older GPUs (Turing/Ampere)
+
+  num_workers: 4
+  pin_memory: true
+
+  # Memory profiling and optimization
+  detect_anomaly: false # Disable for production (huge memory overhead)
+  benchmark: true # cudnn benchmarking for speed
+  deterministic: false # Disable for spped (enable for reproducibility)
+
+evaluation:
+  metrics:
+    - "accuracy"
+    - "f1_macro"
+    - "f1_weighted"
+    - "mcc"
+    - "hamming_loss"
+    - "label_ranking_average_precision"
+
+  threshold_optimization:
+    enable: true
+    metric: "f1_macro"
+
+  per_class_analysis: true
+  confusion_matrix: true
