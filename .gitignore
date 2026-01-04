@@ -59,7 +59,6 @@ Thumbs.db
 .streamlit/
 # Logs o configuración local
 logs/
-data/
 *.uvicorn.log
 *.streamlit.log
 
