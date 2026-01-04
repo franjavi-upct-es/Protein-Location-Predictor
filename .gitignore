@@ -85,5 +85,4 @@ __pypackages__/
 *.gz
 *.zip
 docker-compose.override.yml
-.python-version
 uv.lock
