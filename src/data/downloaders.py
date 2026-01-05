@@ -3,16 +3,17 @@
 Multi-source data downloaders with robust error handling and caching.
 """
 
-import requests
-import pandas as pd
-from io import StringIO
-from pathlib import Path
-from typing import Optional, List, Dict
-import re
 import logging
-from tqdm import tqdm
+import re
 import time
 from abc import ABC, abstractmethod
+from io import StringIO
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import pandas as pd
+import requests
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 

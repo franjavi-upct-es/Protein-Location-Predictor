@@ -4,11 +4,12 @@ Memory optimization utilities for efficient GPU usage.
 Automatically adjusts batch sizes and handles OOM errors.
 """
 
-import torch
-import logging
-from typing import Callable, Any
-import psutil
 import gc
+import logging
+from typing import Any, Callable
+
+import psutil
+import torch
 
 logger = logging.getLogger(__name__)
 

@@ -3,12 +3,13 @@
 Homology-aware data splitting using GraphPart to prevent data leakage.
 """
 
+import logging
 import subprocess
-import pandas as pd
+import tempfile
 from pathlib import Path
 from typing import Dict, Optional
-import logging
-import tempfile
+
+import pandas as pd
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
