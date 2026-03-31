@@ -1,6 +1,6 @@
-# ================================
-# Python general
-# ================================
+# ===========================================================================
+# Python
+# ===========================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -11,80 +11,67 @@ dist/
 build/
 .eggs/
 
-# ================================
-# Entornos virtuales
-# ================================
+# ===========================================================================
+# Virtual environments
+# ===========================================================================
 .venv/
 venv/
 ENV/
-env/
-env.bak/
-*.env
-*.envrc
 
-# ================================
-# Archivos temporales / caché
-# ================================
+# Note: uv.lock is committed (reproducible builds for applications).
+# .python-version is committed (project Python version for UV).
+
+# ===========================================================================
+# IDE and editor
+# ===========================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===========================================================================
+# Testing and quality
+# ===========================================================================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+reports/coverage/
+
+# ===========================================================================
+# Data and models (large files — use DVC or Git LFS if needed)
+# ===========================================================================
+data/raw/
+data/processed/
+data/splits/
+models/*.pt
+models/*.ckpt
+models/*.pkl
+models/*.joblib
+!models/.gitkeep
+
+# ===========================================================================
+# Experiment tracking
+# ===========================================================================
+mlruns/
+wandb/
+./models/
+
+# ===========================================================================
+# Docker
+# ===========================================================================
+docker-compose.override.yml
+
+# ===========================================================================
+# Miscellaneous
+# ===========================================================================
 *.log
 *.tmp
 *.bak
-*.swp
-*.swo
-*.sqlite3
-*.db
-*.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.ipynb_checkpoints
-
-# ================================
-# Modelos, artefactos y datos
-# ================================
-models/
-data/
-notebooks/
-scripts/visualize_results.py
-*.pkl
-*.joblib
-*.csv
-*.xlsx
-*.parquet
-*.json
-
-
-# (Descomenta si quieres subir solo scripts y no resultados)
-# !models/README.md
-# !data/README.md
-
-# ================================
-# Streamlit & FastAPI
-# ================================
-.streamlit/
-# Logs o configuración local
-logs/
-*.uvicorn.log
-*.streamlit.log
-
-# ================================
-# Archivos del sistema
-# ================================
-.DS_Store
-*.tmp
-*.bak
-*.orig
-
-# ================================
-# Archivos de dependencias
-# ================================
-# (Ignora entornos automáticos de pip)
-pip-wheel-metadata/
-__pypackages__/
-
-# ================================
-# Archivos de Docker y CI/CD
-# ================================
-*.tar
-*.gz
-*.zip
-docker-compose.override.yml
+*.env
+.envrc
+.claude

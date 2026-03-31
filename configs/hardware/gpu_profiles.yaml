@@ -1,0 +1,249 @@
+# configs/hardware/gpu_profiles.yaml
+# ===========================================================================
+# GPU profiles for automatic hardware-aware configuration.
+#
+# When the system detects a GPU, it matches by name against these profiles
+# to determine optimal batch size, precision, and memory strategy.
+#
+# If no profile matches, the system falls back to conservative defaults
+# based on detected VRAM.
+# ===========================================================================
+
+profiles:
+  # --- NVIDIA Blackwell (50-series) ---
+  RTX_5060:
+    vram_gb: 8
+    architecture: "blackwell"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 8
+      gradient_checkpointing: true
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  RTX_5070:
+    vram_gb: 12
+    architecture: "blackwell"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 16
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  RTX_5080:
+    vram_gb: 16
+    architecture: "blackwell"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 32
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  RTX_5090:
+    vram_gb: 32
+    architecture: "blackwell"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 64
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 2048
+
+  # --- NVIDIA Ada Lovelace (40-series) ---
+  RTX_4060:
+    vram_gb: 8
+    architecture: "ada_lovelace"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 8
+      gradient_checkpointing: true
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  RTX_4070:
+    vram_gb: 12
+    architecture: "ada_lovelace"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 16
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  RTX_4080:
+    vram_gb: 16
+    architecture: "ada_lovelace"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 32
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  RTX_4090:
+    vram_gb: 24
+    architecture: "ada_lovelace"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 64
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 2048
+
+  # --- NVIDIA Ampere (30-series) ---
+  RTX_3060:
+    vram_gb: 12
+    architecture: "ampere"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 16
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  RTX_3070:
+    vram_gb: 8
+    architecture: "ampere"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 8
+      gradient_checkpointing: true
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  RTX_3080:
+    vram_gb: 10
+    architecture: "ampere"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 16
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  RTX_3090:
+    vram_gb: 24
+    architecture: "ampere"
+    supports_bf16: true
+    supports_fp16: true
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 64
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 2048
+
+  # --- NVIDIA Turing (20-series) ---
+  RTX_2080_Ti:
+    vram_gb: 11
+    architecture: "turing"
+    supports_bf16: false
+    supports_fp16: true
+    recommended:
+      precision: "16-mixed"
+      batch_size: 2
+      gradient_checkpointing: true
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  # --- Apple Silicon ---
+  Apple_M1:
+    vram_gb: 16 # Unified memory (shared)
+    architecture: "apple_silicon"
+    supports_bf16: false
+    supports_fp16: true
+    recommended:
+      precision: "16-mixed"
+      batch_size: 2
+      gradient_checkpointing: true
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  Apple_M2:
+    vram_gb: 24
+    architecture: "apple_silicon"
+    supports_bf16: false
+    supports_fp16: true
+    recommended:
+      precision: "16-mixed"
+      batch_size: 4
+      gradient_checkpointing: true
+      cpu_offload: false
+      max_sequence_length: 1024
+
+# ---------------------------------------------------------------------------
+# Fallback tiers: used when no named profile matches.
+# The system picks the tier whose vram_up_to_gb >= detected VRAM.
+# ---------------------------------------------------------------------------
+fallback_tiers:
+  - vram_up_to_gb: 6
+    recommended:
+      precision: "16-mixed"
+      batch_size: 4
+      gradient_checkpointing: true
+      cpu_offload: false
+      max_sequence_length: 512
+
+  - vram_up_to_gb: 8
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 8
+      gradient_checkpointing: true
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  - vram_up_to_gb: 12
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 16
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  - vram_up_to_gb: 16
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 32
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 1024
+
+  - vram_up_to_gb: 24
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 64
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 2048
+
+  - vram_up_to_gb: 999
+    recommended:
+      precision: "bf16-mixed"
+      batch_size: 128
+      gradient_checkpointing: false
+      cpu_offload: false
+      max_sequence_length: 2048

@@ -1,0 +1,31 @@
+# configs/inference.yaml
+# ===========================================================================
+# Inference and serving configuration
+# ===========================================================================
+
+inference:
+  # Model checkpoint to load
+  checkpoint_path: null # null = latest best checkpoint from models/
+  device: "auto" # "auto" | "cuda" | "cpu"
+  precision: "bf16" # "bf16" | "fp16" | "fp32"
+
+  # Batch inference settings
+  batch_size: 32
+  max_sequence_length: 1024
+
+  # Prediction thresholds (multi-label)
+  threshold: 0.5 # Sigmoid threshold for positive prediction
+  top_k: 3 # Max number of locations to return
+
+serving:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false # Set to true for development
+  cors_origins: ["*"]
+
+  # Rate limiting
+  max_requests_per_minute: 60
+  max_sequence_length: 2048
+
+  # Health check
+  model_warmup: true # Run a dummy prediction on startup

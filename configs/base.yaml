@@ -1,0 +1,159 @@
+# configs/base.yaml
+# ===========================================================================
+# Base configuration for the Protein Subcellular Localization Predictor v2.0
+# All paths are relative to the project root.
+# Override per-environment values in training.yaml / inference.yaml.
+# ===========================================================================
+
+project:
+  name: "protein-loc-predictor"
+  version: "2.0.0"
+  seed: 42
+  log_level: "INFO" # DEBUG | INFO | WARNING | ERROR
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+  data_dir: "data"
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  splits_dir: "data/splits"
+  models_dir: "models"
+  reports_dir: "reports"
+  figures_dir: "reports/figures"
+  mlflow_dir: "mlruns"
+
+# ---------------------------------------------------------------------------
+# Data collection
+# ---------------------------------------------------------------------------
+data:
+  sources:
+    - organism_id: 559292 # S. cerevisiae (yeast)
+      reviewed: true
+    - organism_id: 9606 # H. sapiens (human)
+      reviewed: true
+    - organism_id: 10090 # M. musculus (mouse)
+      reviewed: true
+  uniprot_api_url: "https://rest.uniprot.org/uniprotkb/stream"
+  fields: "accession,sequence,cc_subcellular_location,organism_id,organism_name"
+  max_sequence_length: 2048
+  min_sequence_length: 30
+
+# ---------------------------------------------------------------------------
+# Data processing
+# ---------------------------------------------------------------------------
+processing:
+  # Minimum samples per class to include in the dataset
+  min_samples_per_class: 50
+  # Multi-label: keep all annotated locations per protein
+  multi_label: true
+  # Valid amino acid alphabet (non-standard AAs are filtered)
+  valid_amino_acids: "ACDEFGHIKLMNPQRSTVWY"
+
+  # Hierarchical location mapping
+  location_groups:
+    Nucleus:
+      - "nucleus"
+      - "nucleolus"
+      - "nucleoplasm"
+      - "nuclear"
+    Mitochondrion:
+      - "mitochondrion"
+      - "mitochondria"
+      - "mitochondrial"
+    Endoplasmic Reticulum:
+      - "endoplasmic reticulum"
+    Golgi Apparatus:
+      - "golgi"
+    Cytoplasm:
+      - "cytoplasm"
+      - "cytosol"
+      - "cytoskeleton"
+    Membrane:
+      - "membrane"
+      - "cell membrane"
+      - "plasma membrane"
+    Secreted/Extracellular:
+      - "secreted"
+      - "extracellular"
+      - "cell wall"
+    Vacuole:
+      - "vacuole"
+      - "lysosome"
+    Peroxisome:
+      - "peroxisome"
+
+# ---------------------------------------------------------------------------
+# Data splitting
+# ---------------------------------------------------------------------------
+splitting:
+  method: "homology" # "homology" | "random"
+  # Homology-aware splitting via MMseqs2 clustering
+  sequence_identity_threshold: 0.3
+  coverage_threshold: 0.8
+  test_size: 0.15
+  val_size: 0.15
+  # Fallback to random stratified split if MMseqs2 is not available
+  random_fallback: true
+
+# ---------------------------------------------------------------------------
+# ESM-2 backbone
+# ---------------------------------------------------------------------------
+model:
+  backbone:
+    name: "facebook/esm2_t30_150M_UR50D"
+    embedding_dim: 640
+    num_layers: 30
+    max_position_embeddings: 1024
+
+  # LoRA adapter configuration
+  lora:
+    rank: 8
+    alpha: 16
+    dropout: 0.1
+    target_modules:
+      - "query"
+      - "key"
+      - "value"
+      - "dense"
+    bias: "none"
+
+  # Classification head
+  classifier:
+    hidden_dims: [256, 128]
+    dropout: 0.3
+    activation: "gelu"
+    # Number of output classes is determined dynamically from data
+
+# ---------------------------------------------------------------------------
+# Loss function
+# ---------------------------------------------------------------------------
+loss:
+  # Focal loss for class imbalance
+  focal:
+    gamma: 2.0
+    alpha: null # null = auto-compute from class frequencies
+  # Hierarchical penalty (optional)
+  hierarchical:
+    enabled: true
+    weight: 0.1 # Weight of hierarchical loss term
+
+# ---------------------------------------------------------------------------
+# External features (optional, complement ESM-2 embeddings)
+# ---------------------------------------------------------------------------
+features:
+  biophysical:
+    enabled: true
+    properties:
+      - "molecular_weight"
+      - "isoelectric_point"
+      - "gravy" # Grand Average of Hydropathy
+      - "aromaticity"
+      - "instability_index"
+  signal_peptide:
+    enabled: false # Requires SignalP 6.0 installation
+    binary_path: null # Path to signalp6 binary
+  transmembrane:
+    enabled: false # Requires TMHMM or DeepTMHMM
+    binary_path: null

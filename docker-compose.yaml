@@ -1,0 +1,42 @@
+# docker-compose.yaml
+# ===========================================================================
+# Local development stack
+# ===========================================================================
+
+services:
+  api:
+    build:
+      context: .
+      target: production
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./configs:/app/configs
+      - ./mlruns:/app/mlruns
+    environment:
+      - PROT_LOC_PROJECT__LOG_LEVEL=INFO
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # MLflow tracking UI (optional, for experiment visualization)
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.9.2
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+    command: >
+      mlflow server
+      --backend-store-uri file:///mlflow/mlruns
+      --host 0.0.0.0
+      --port 5000
+    profiles:
+      - tracking # Only starts with: docker compose --profile tracking up

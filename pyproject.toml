@@ -1,0 +1,136 @@
+[project]
+name = "protein-loc-predictor"
+version = "2.0.0"
+description = "Subcellular protein localization predictor using ESM-2 with LoRA fine-tuning"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+authors = [{ name = "Francisco Javier Mercader Martínez" }]
+keywords = [
+  "bioinformatics",
+  "protein-localization",
+  "esm2",
+  "lora",
+  "deep-learning",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+  "torch>=2.1.0",
+  "transformers>=4.36.0",
+  "peft>=0.7.0",
+  "accelerate>=0.25.0",
+  "pytorch-lightning>=2.1.0",
+  "torchmetrics>=1.2.0",
+  "pandas>=2.1.0",
+  "numpy>=1.26.0",
+  "scikit-learn>=1.3.0",
+  "requests>=2.31.0",
+  "pyyaml>=6.0",
+  "fastapi>=0.104.0",
+  "uvicorn[standard]>=0.24.0",
+  "biopython>=1.82",
+  "mlflow>=2.9.0",
+]
+
+[project.scripts]
+prot-loc-train = "src.training.train:main"
+prot-loc-serve = "src.serving.app:main"
+prot-loc-download = "src.data.download:main"
+
+# ---------------------------------------------------------------------------
+# UV dependency groups
+# ---------------------------------------------------------------------------
+[dependency-groups]
+dev = [
+  "pytest>=7.4.0",
+  "pytest-cov>=4.1.0",
+  "pytest-mock>=3.12.0",
+  "mypy>=1.7.0",
+  "ruff>=0.8.0",
+  "pre-commit>=3.6.0",
+  "ipython>=8.0.0",
+  "types-pyyaml>=6.0.12.20250915",
+]
+
+# ---------------------------------------------------------------------------
+# UV configuration
+# ---------------------------------------------------------------------------
+[tool.uv]
+# PyTorch index for CUDA builds (uncomment and adjust for your CUDA version)
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+# [tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+
+# ---------------------------------------------------------------------------
+# Build system (hatchling is UV's recommended backend)
+# ---------------------------------------------------------------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py311"
+line-length = 79
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "N",   # pep8-naming
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "SIM", # flake8-simplify
+]
+ignore = ["N806"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+  "slow: marks tests that require significant computation (deselect with '-m \"not slow\"')",
+  "gpu: marks tests that require a GPU",
+  "integration: marks integration tests",
+]
+
+# ---------------------------------------------------------------------------
+# Bandit
+# ---------------------------------------------------------------------------
+[tool.bandit]
+skips = ["B101", "B404", "B603", "B607", "B615"]
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+ignore_missing_imports = true
