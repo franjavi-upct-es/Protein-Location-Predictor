@@ -8,7 +8,7 @@ training:
   max_epochs: 30
   patience: 5 # Early stopping patience
   gradient_clip_val: 1.0
-  accumulate_grad_batches: 4  # Effective batch = batch_size × 4
+  accumulate_grad_batches: 4 # Effective batch = batch_size × 4
 
   # Optimizer
   optimizer:
@@ -45,3 +45,18 @@ training:
 
   # Reproducibility
   deterministic: true
+
+# ---------------------------------------------------------------------------
+# Notes on enabling QLoRA for VRAM-constrained training
+# ---------------------------------------------------------------------------
+# To validate the QLoRA path on the current backbone (t30 150M), launch with:
+#
+#   uv run python -m src.training.train \
+#     --overrides model.quantization.enabled=true
+#
+# Or set the env var:
+#
+#   PROT_LOC_MODEL__QUANTIZATION__ENABLED=true uv run python -m src.training.train
+#
+# Quantization requires a CUDA-capable GPU and the bitsandbytes package.
+# It will raise an explicit error if either is missing.

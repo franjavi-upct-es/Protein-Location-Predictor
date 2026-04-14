@@ -27,6 +27,7 @@ dependencies = [
   "transformers>=4.36.0",
   "peft>=0.7.0",
   "accelerate>=0.25.0",
+  "bitsandbytes>=0.45.0",
   "pytorch-lightning>=2.1.0",
   "torchmetrics>=1.2.0",
   "pandas>=2.1.0",

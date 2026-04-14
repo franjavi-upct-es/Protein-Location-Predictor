@@ -6,7 +6,7 @@
 
 .PHONY: help sync sync-dev test test-fast test-cov lint format typecheck \
         quality clean download process train serve docker-build docker-run \
-        hw-detect vram-estimate lock
+        hw-detect vram-estimate qlora-smoke lock
 
 # ---------------------------------------------------------------------------
 # Help
@@ -88,6 +88,17 @@ vram-estimate: ## Estimate VRAM usage for default configuration
 	from src.utils.hardware import estimate_vram_usage; \
 	r = estimate_vram_usage(); \
 	print('\n'.join(f'{k}: {v:.2f} GB' for k,v in r.items()))"
+
+qlora-smoke: ## Validate the QLoRA path on the configured backbone (requires CUDA + bitsandbytes)
+	uv run python -c "\
+	import torch; \
+	from src.models.esm_lora import build_esm_lora_backbone; \
+	from src.utils.config import load_config; \
+	cfg = load_config(overrides=['model.quantization.enabled=true']); \
+	m = build_esm_lora_backbone(cfg, enable_gradient_checkpointing=True).to('cuda'); \
+	print('Quantized backbone loaded OK on', next(m.parameters()).device); \
+	allocated_gb = torch.cuda.memory_allocated() / (1024**3); \
+	print(f'VRAM allocated after load: {allocated_gb:.2f} GB')"
 
 # ---------------------------------------------------------------------------
 # Docker

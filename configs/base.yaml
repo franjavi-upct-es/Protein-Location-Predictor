@@ -107,6 +107,15 @@ model:
     num_layers: 30
     max_position_embeddings: 1024
 
+  # 4-bit / 8-bit quantization via bitsandbytes (QLoRA path).
+  # Disabled by default so CPU-only environments and existing tests
+  # keep working unchanged. Enable for VRAM-constrainted training.
+  quantization:
+    enabled: false
+    method: "nf4" # nf4 | fp4 | int8
+    compute_dtype: "bfloat16"
+    double_quant: true
+
   # LoRA adapter configuration
   lora:
     rank: 8

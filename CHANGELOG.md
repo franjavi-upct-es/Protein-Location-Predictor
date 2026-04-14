@@ -166,6 +166,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `torch = { index = "pytorch-cu124" }` source declaration is parsed
   into the correct table.
 
+#### Added
+
+- Optional QLoRA path in `src/models/esm_lora.py`. When
+  `model.quantization.enabled` is true, the ESM-2 backbone is loaded in
+  4-bit (NF4 by default) via bitsandbytes and prepared for k-bit
+  training before LoRA is injected. CPU and non-quantized paths are
+  unchanged.
+- New configuration section `model.quantization` in `configs/base.yaml`
+  with sensible defaults (NF4, bfloat16 compute dtype, double quant).
+  Disabled by default to keep existing tests and CPU-only environments
+  working out of the box.
+- `bitsandbytes>=0.45.0` added to project dependencies.
+- New tests `tests/unit/test_esm_lora_quantization.py`:
+  - Pure validation tests for `_build_bnb_config` (no GPU required).
+  - GPU-marked smoke test that loads `facebook/esm2_t6_8M_UR50D` in
+    4-bit, applies LoRA, and runs a forward pass end-to-end.
+- New `make qlora-smoke` target that loads the configured backbone
+  with quantization enabled and reports VRAM usage after load.
+
 ## [1.0.0] - Previous version
 
 - Yeast-only data from UniProt
