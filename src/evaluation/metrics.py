@@ -66,14 +66,15 @@ def collect_predictions(
         attention_mask = batch["attention_mask"].to(device)
         targets = batch["labels"]
 
+        external_features = batch.get("external_features")
+        if external_features is not None:
+            external_features = external_features.to(device)
+
         if hasattr(model, "forward"):
             logits = model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                external_features=batch.get("external_features", {}).get(
-                    "to", lambda _: None
-                )
-                or None,
+                external_features=external_features,
             )
         else:
             logits = model(input_ids, attention_mask)

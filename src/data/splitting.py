@@ -135,7 +135,7 @@ def _run_mmseqs2_clustering(
             f"{n_clusters} clusters at {identity_threshold:.0%} identity"
         )
 
-        return {str(k): int(v) for k, v in cluster_map}
+        return {str(k): int(v) for k, v in cluster_map.items()}
 
     finally:
         if cleanup:

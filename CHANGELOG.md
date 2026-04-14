@@ -149,6 +149,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 50 new tests: biophysical features, external tool degradation, evaluation metrics,
   API schemas, API integration tests (health, predict, batch, labels endpoints)
 
+### Sprint 5 — Production Hardening (in progress)
+
+#### Fixed
+
+- `src/data/splitting.py`: `_run_mmseqs2_clustering` now correctly iterates
+  over `cluster_map.items()` instead of unpacking dict keys, which would
+  raise `ValueError` on the first successful MMseqs2 run.
+- `src/evaluation/metrics.py`: `collect_predictions` no longer passes a
+  broken `.get("to", lambda _: None) or None` expression for external
+  features. Replaced with explicit `None`-aware device transfer so that
+  the biophysical features pipeline works at evaluation time.
+- `src/models/esm_lora.py`: log message now reads `LoRA rank=8, alpha=16`
+  instead of the malformed `LoRA rank8, alpha=16`.
+- `pyproject.toml`: uncommented the `[tool.uv.sources]` table header so
+  the `torch = { index = "pytorch-cu124" }` source declaration is parsed
+  into the correct table.
+
 ## [1.0.0] - Previous version
 
 - Yeast-only data from UniProt

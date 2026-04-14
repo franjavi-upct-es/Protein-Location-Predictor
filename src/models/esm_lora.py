@@ -77,7 +77,7 @@ def build_esm_lora_backbone(
         f"({100 * trainable / total:.2f}%)"
     )
     logger.info(f"Target modules: {target_modules}")
-    logger.info(f"LoRA rank{lora_cfg.rank}, alpha={lora_cfg.alpha}")
+    logger.info(f"LoRA rank={lora_cfg.rank}, alpha={lora_cfg.alpha}")
 
     # from_pretrained() returns models in eval mode by default.
     model.train()
