@@ -9,6 +9,9 @@ Provides monitoring and logging callbacks for training.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 import pytorch_lightning as pl
 import torch
 
@@ -36,8 +39,8 @@ class VRAMMonitorCallback(pl.Callback):
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: dict,
-        batch: dict,
+        outputs: torch.Tensor | Mapping[str, Any] | None,
+        batch: Any,
         batch_idx: int,
     ) -> None:
         if not torch.cuda.is_available():

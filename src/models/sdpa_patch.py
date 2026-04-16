@@ -16,7 +16,8 @@ after it has been applied. ``unpatch_esm_sdpa()`` restores the original
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, cast
 
 from src.utils.logging import get_logger
 
@@ -25,6 +26,7 @@ logger = get_logger(__name__)
 
 _PATCH_FLAG = "_sdpa_patched"
 _ORIGINAL_FROM_PRETRAINED_ATTR = "_original_from_pretrained_pre_sdpa"
+_FromPretrainedCallable = Callable[..., Any]
 
 
 def patch_esm_sdpa() -> bool:
@@ -44,9 +46,17 @@ def patch_esm_sdpa() -> bool:
         logger.debug("ESM SDPA patch already applied — skipping")
         return True
 
-    original = EsmModel.from_pretrained.__func__
+    original_method = cast(Any, EsmModel.from_pretrained)
+    original = cast(
+        _FromPretrainedCallable,
+        getattr(original_method, "__func__", original_method),
+    )
     setattr(EsmModel, _ORIGINAL_FROM_PRETRAINED_ATTR, original)
-    EsmModel.from_pretrained = classmethod(_esm_from_pretrained_sdpa)
+    type.__setattr__(
+        EsmModel,
+        "from_pretrained",
+        classmethod(_esm_from_pretrained_sdpa),
+    )
     setattr(EsmModel, _PATCH_FLAG, True)
 
     logger.info(
@@ -74,7 +84,7 @@ def unpatch_esm_sdpa() -> bool:
     if original is None:
         return False
 
-    EsmModel.from_pretrained = classmethod(original)
+    type.__setattr__(EsmModel, "from_pretrained", classmethod(original))
     delattr(EsmModel, _ORIGINAL_FROM_PRETRAINED_ATTR)
     setattr(EsmModel, _PATCH_FLAG, False)
     logger.info("Restored stock EsmModel.from_pretrained")
@@ -97,7 +107,10 @@ def _esm_from_pretrained_sdpa(
     **kwargs: Any,
 ) -> Any:
     """Wrapper that defaults ESM loads to SDPA when unspecified."""
-    original = getattr(cls, _ORIGINAL_FROM_PRETRAINED_ATTR, None)
+    original = cast(
+        _FromPretrainedCallable | None,
+        getattr(cls, _ORIGINAL_FROM_PRETRAINED_ATTR, None),
+    )
     if original is None:
         raise RuntimeError(
             "ESM SDPA patch lost reference to the original "

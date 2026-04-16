@@ -6,7 +6,8 @@
 
 .PHONY: help sync sync-dev test test-fast test-cov lint format typecheck \
         quality clean download process train serve docker-build docker-run \
-        hw-detect vram-estimate qlora-smoke sdpa-smoke lock
+        hw-detect vram-estimate qlora-smoke sdpa-smoke lock auto-batch-size \
+				smoke
 
 # ---------------------------------------------------------------------------
 # Help
@@ -121,6 +122,12 @@ sdpa-smoke: ## Validate the SDPA patch loads and produces equivalent outputs
 	print(f'Max abs diff stock vs SDPA: {diff:.2e}'); \
 	assert diff < 1e-4, 'SDPA patch is not numerically equivalent'; \
 	print('SDPA patch verified OK')"
+
+auto-batch-size: ## Probe the largest batch size that fits on the current GPU
+	uv run python -m src.training.auto_batch_size
+
+smoke: ## Run the slow end-to-end smoke test on synthetic data
+	uv run pytest tests/integration/test_end_to_end_smoke.py -v -m slow
 
 # ---------------------------------------------------------------------------
 # Docker

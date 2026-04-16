@@ -17,6 +17,8 @@ Usage::
 
 from __future__ import annotations
 
+from typing import cast
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
@@ -233,8 +235,9 @@ class HierarchicalLoss(nn.Module):
         # dist_to_true: (B, C) — average distance
         # from each class to the true set
         true_count = targets.sum(dim=-1, keepdim=True).clamp(min=1)  # (B, 1)
+        distance_matrix = cast(torch.Tensor, self.distance_matrix)
         dist_to_true = (
-            torch.matmul(targets, self.distance_matrix) / true_count
+            torch.matmul(targets, distance_matrix) / true_count
         )  # (B, C)
 
         # Penalty = false positive probability * distance to nearest true class

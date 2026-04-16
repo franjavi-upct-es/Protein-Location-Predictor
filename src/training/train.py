@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 import pytorch_lightning as pl
@@ -30,6 +31,7 @@ from pytorch_lightning.callbacks import (
     LearningRateMonitor,
     ModelCheckpoint,
 )
+from pytorch_lightning.loggers.logger import Logger as LightningLogger
 
 from src.data.datasets import ProteinDataModule
 from src.models.lightning_module import ProteinLocalizationModule
@@ -166,6 +168,11 @@ def _build_callbacks(cfg: DotDict) -> list[pl.Callback]:
         )
     )
 
+    # Runtime fingerprint (reproducibility)
+    from src.training.runtime_fingerprint import RuntimeFingerprintCallback
+
+    callbacks.append(RuntimeFingerprintCallback(cfg))
+
     return callbacks
 
 
@@ -179,6 +186,7 @@ def _build_trainer(cfg: DotDict, hw_profile: object) -> pl.Trainer:
     callbacks = _build_callbacks(cfg)
 
     # Logger (MLflow)
+    pl_logger: LightningLogger
     try:
         from pytorch_lightning.loggers import MLFlowLogger
 
@@ -251,6 +259,33 @@ def train(cfg: DotDict) -> None:
     if training_cfg.get("max_sequence_length") is None:
         training_cfg["max_sequence_length"] = hw.max_sequence_length
 
+    # Empirical batch-size tuning. Runs only when:
+    #   - the user explicitly opted in via training.auto_batch_size,
+    #   - we are on CUDA (probing requires a real GPU),
+    #   - and the resulting size will replace the configured one.
+    if (
+        training_cfg.get("auto_batch_size", False)
+        and getattr(hw, "device", None) == "cuda"
+    ):
+        from src.training.auto_batch_size import find_max_batch_size
+
+        probed = find_max_batch_size(
+            cfg,
+            max_seq_length=int(training_cfg["max_sequence_length"]),
+        )
+        logger.info(
+            "Auto batch-size: replacing configured "
+            f"{training_cfg['batch_size']} with empirical {probed}"
+        )
+        training_cfg["batch_size"] = probed
+
+    logger.info(
+        f"Training config: batch_size={training_cfg.batch_size}, "
+        f"precision={training_cfg.precision}, "
+        f"grad_checkpoint={training_cfg.gradient_checkpointing}, "
+        f"max_seq_len={training_cfg.max_sequence_length}"
+    )
+
     logger.info(
         f"Training config: batch_size={training_cfg.batch_size}, "
         f"precision={training_cfg.precision}, "
@@ -279,7 +314,15 @@ def train(cfg: DotDict) -> None:
     trainer.fit(model, datamodule=dm)
 
     # 8. Test with best checkpoint
-    best_path = trainer.checkpoint_callback.best_model_path
+    checkpoint_callback = cast(
+        ModelCheckpoint | None,
+        getattr(trainer, "checkpoint_callback", None),
+    )
+    best_path = (
+        checkpoint_callback.best_model_path
+        if checkpoint_callback is not None
+        else ""
+    )
     if best_path:
         logger.info(f"Testing with best checkpoint: {best_path}")
         trainer.test(model, datamodule=dm, ckpt_path=best_path)

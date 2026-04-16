@@ -18,7 +18,7 @@ Usage::
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import torch
 import torch.nn as nn
@@ -27,6 +27,17 @@ from src.utils.config import DotDict
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    from transformers import PreTrainedModel
+else:
+    PreTrainedModel = nn.Module
+
+
+class _HasLastHiddenState(Protocol):
+    """Structural type for transformer outputs used by the pooling helper."""
+
+    last_hidden_state: torch.Tensor
 
 
 class QuantizationRuntimeUnsupportedError(RuntimeError):
@@ -40,7 +51,7 @@ class QuantizationRuntimeUnsupportedError(RuntimeError):
 
 def build_esm_lora_backbone(
     cfg: DotDict, enable_gradient_checkpointing: bool = True
-) -> nn.Module:
+) -> PreTrainedModel:
     """
     Build an ESM-2 backbone with LoRA adapters.
 
@@ -111,7 +122,7 @@ def build_esm_lora_backbone(
     )
 
     # Apply LoRA adapters
-    model = get_peft_model(base_model, lora_config)
+    model = get_peft_model(cast(PreTrainedModel, base_model), lora_config)
 
     # Log parameter counts
     trainable, total = model.get_nb_trainable_parameters()
@@ -130,7 +141,7 @@ def build_esm_lora_backbone(
     # from_pretrained() returns models in eval mode by default.
     model.train()
 
-    return model
+    return cast(PreTrainedModel, model)
 
 
 def _resolve_lora_target_modules(
@@ -215,7 +226,9 @@ def get_embedding_dim(cfg: DotDict) -> int:
 
 
 def extract_sequence_representation(
-    model_output: Any, attention_mask: torch.Tensor, pooling: str = "mean"
+    model_output: _HasLastHiddenState,
+    attention_mask: torch.Tensor,
+    pooling: str = "mean",
 ) -> torch.Tensor:
     """
     Extract a fixed-size representation from ESM-2 token-level outputs.
@@ -232,7 +245,7 @@ def extract_sequence_representation(
     Returns:
         Tensor of shape (B, D) or (B, 2*D) for "mean_cls".
     """
-    hidden_states = model_output.last_hidden_state  # (B, L, D)
+    hidden_states = cast(torch.Tensor, model_output.last_hidden_state)
 
     if pooling == "cls":
         return hidden_states[:, 0, :]  # (B, D)
@@ -337,7 +350,7 @@ def _load_quantized_backbone(
     model_name: str,
     quant_cfg: DotDict | dict[str, Any],
     enable_gradient_checkpointing: bool,
-) -> nn.Module:
+) -> PreTrainedModel:
     """
     Load an ESM-2 backbone in k-bit precision and prepare it for training.
 
@@ -376,7 +389,7 @@ def _load_quantized_backbone(
     # PEFT helper: keeps LayerNorms in fp32 for stability, enables input
     # gradients (needed by activation checkpointing on quantized layers),
     # and optionally enables gradient checkpointing with use_reentrant=False.
-    base_model = prepare_model_for_kbit_training(
+    prepared_model = prepare_model_for_kbit_training(
         base_model,
         use_gradient_checkpointing=enable_gradient_checkpointing,
     )
@@ -386,7 +399,7 @@ def _load_quantized_backbone(
             "(via prepare_model_for_kbit_training)."
         )
 
-    return base_model
+    return cast(PreTrainedModel, prepared_model)
 
 
 def _build_bnb_config(quant_cfg: DotDict | dict[str, Any]) -> Any:

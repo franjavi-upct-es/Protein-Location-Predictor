@@ -14,6 +14,8 @@ Usage::
 
 from __future__ import annotations
 
+from typing import cast
+
 import torch
 import torch.nn as nn
 
@@ -73,10 +75,11 @@ class ClassifierHead(nn.Module):
         layers.append(nn.Linear(prev_dim, num_classes))
 
         self.network = nn.Sequential(*layers)
+        output_layer = cast(nn.Linear, self.network[-1])
 
         # Initialize final layer with small weights for stable early training
-        nn.init.xavier_uniform_(self.network[-1].weight, gain=0.01)
-        nn.init.zeros_(self.network[-1].bias)
+        nn.init.xavier_uniform_(output_layer.weight, gain=0.01)
+        nn.init.zeros_(output_layer.bias)
 
         logger.info(
             f"ClassifierHead: {input_dim} -> {hidden_dims} -> {num_classes} "
@@ -94,7 +97,7 @@ class ClassifierHead(nn.Module):
             Logits tensor of shape (B, num_classes).
             Apply sigmoid for probabilities.
         """
-        return self.network(x)
+        return cast(torch.Tensor, self.network(x))
 
     @classmethod
     def from_config(

@@ -14,8 +14,11 @@ Usage::
 
 from __future__ import annotations
 
+from typing import TypedDict, cast
+
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.utilities.types import OptimizerLRSchedulerConfig
 from torchmetrics.classification import (
     MultilabelF1Score,
     MultilabelPrecision,
@@ -33,6 +36,15 @@ from src.utils.config import DotDict
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class StepResult(TypedDict):
+    """Typed structure returned by the shared train/val/test step."""
+
+    loss: torch.Tensor
+    losses: dict[str, torch.Tensor]
+    preds: torch.Tensor
+    targets: torch.Tensor
 
 
 class ProteinLocalizationModule(pl.LightningModule):
@@ -96,12 +108,21 @@ class ProteinLocalizationModule(pl.LightningModule):
         )
 
         # Metrics
-        metric_kwargs = {"num_labels": self.num_classes, "average": "macro"}
-        self.train_f1 = MultilabelF1Score(**metric_kwargs)
-        self.val_f1 = MultilabelF1Score(**metric_kwargs)
-        self.val_precision = MultilabelPrecision(**metric_kwargs)
-        self.val_recall = MultilabelRecall(**metric_kwargs)
-        self.test_f1 = MultilabelF1Score(**metric_kwargs)
+        self.train_f1 = MultilabelF1Score(
+            num_labels=self.num_classes, average="macro"
+        )
+        self.val_f1 = MultilabelF1Score(
+            num_labels=self.num_classes, average="macro"
+        )
+        self.val_precision = MultilabelPrecision(
+            num_labels=self.num_classes, average="macro"
+        )
+        self.val_recall = MultilabelRecall(
+            num_labels=self.num_classes, average="macro"
+        )
+        self.test_f1 = MultilabelF1Score(
+            num_labels=self.num_classes, average="macro"
+        )
 
         # Per-class F1 for detailed logging
         self.val_f1_per_class = MultilabelF1Score(
@@ -142,14 +163,13 @@ class ProteinLocalizationModule(pl.LightningModule):
             embeddings = torch.cat([embeddings, external_features], dim=-1)
 
         # Classify
-        logits = self.classifier(embeddings)
-        return logits
+        return cast(torch.Tensor, self.classifier(embeddings))
 
     def _shared_step(
         self,
         batch: dict[str, torch.Tensor],
         stage: str,
-    ) -> dict[str, torch.Tensor]:
+    ) -> StepResult:
         """Shared logic for train/val/test steps."""
         logits = self(
             input_ids=batch["input_ids"],
@@ -251,7 +271,7 @@ class ProteinLocalizationModule(pl.LightningModule):
         self.test_f1(result["preds"], result["targets"].int())
         self.log("test/f1_macro", self.test_f1, on_epoch=True, sync_dist=True)
 
-    def configure_optimizers(self) -> dict:
+    def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
         """Configure optimizer with differential learning
         rates and cosine warmup."""
         training_cfg = self.cfg.training
@@ -283,7 +303,7 @@ class ProteinLocalizationModule(pl.LightningModule):
         min_lr = sched_cfg.get("min_lr", 1e-6)
 
         # Estimate total steps
-        total_steps = self.trainer.estimated_stepping_batches
+        total_steps = int(self.trainer.estimated_stepping_batches)
 
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,

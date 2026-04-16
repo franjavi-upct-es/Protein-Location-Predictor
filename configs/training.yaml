@@ -28,8 +28,21 @@ training:
   # but you can set a manual override here.
   batch_size: null # null = auto-detect from VRAM
   max_sequence_length: null # null = auto-detect from hardware profile
+
+  # Empirical batch-size auto-tuning. When true and a CUDA GPU is
+  # available, training.batch_size is overridden by the largest size
+  # that survives a forward+backward probe with the configured model
+  # and sequence length. Result is cached in .cache/auto_batch_size.json.
+  auto_batch_size: false
   num_workers: 4
   pin_memory: true
+
+  # Length-aware batching: groups sequences of similar length into the
+  # same batch to minimize padding waste. Recommended for protein data
+  # because the length distribution is heavy-tailed. Validation and
+  # test loaders are unaffected (they use deterministic ordering).
+  use_length_bucketing: false
+  length_bucket_jitter: 0.05 # 0 = strict sort, larger = more diversity
 
   # Hardware-aware settings (auto-configured, can be overridden)
   precision: "bf16-mixed" # "bf16-mixed" | "16-mixed" | "32"

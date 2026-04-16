@@ -16,7 +16,10 @@ Usage::
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from src.utils.config import DotDict
@@ -99,7 +102,7 @@ def compute_biophysical_features(
     sequences: list[str] | pd.Series,
     cfg: DotDict | None = None,
     properties: list[str] | None = None,
-) -> np.ndarray:
+) -> npt.NDArray[np.float32]:
     """
     Compute biophysical features for a batch of sequences.
 
@@ -163,11 +166,11 @@ def compute_biophysical_features(
         df[col] = df[col].fillna(col_mean)
 
     # Standardize (zero mean, unit variance) for model compatibility
-    result = df.values.astype(np.float32)
+    result = cast(npt.NDArray[np.float32], df.to_numpy(dtype=np.float32))
     means = result.mean(axis=0, keepdims=True)
     stds = result.std(axis=0, keepdims=True)
     stds[stds == 0] = 1.0
     result = (result - means) / stds
 
     logger.info(f"Biophysical features computed: shape {result.shape}")
-    return result
+    return cast(npt.NDArray[np.float32], result)

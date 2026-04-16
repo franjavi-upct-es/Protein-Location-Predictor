@@ -197,6 +197,12 @@ try:
             self.batch_size = training_cfg.get("batch_size", 2)
             self.num_workers = training_cfg.get("num_workers", 4)
             self.pin_memory = training_cfg.get("pin_memory", True)
+            self.use_length_bucketing = training_cfg.get(
+                "use_length_bucketing", False
+            )
+            self.length_bucket_jitter = training_cfg.get(
+                "length_bucket_jitter", 0.05
+            )
             backbone_max_length = cfg.model.backbone.get(
                 "max_position_embeddings", 1024
             )
@@ -297,6 +303,26 @@ try:
 
         def train_dataloader(self) -> DataLoader:
             assert self.train_dataset is not None
+            if self.use_length_bucketing:
+                from src.data.samplers import LengthBucketBatchSampler
+
+                lengths = [len(seq) for seq in self.train_dataset.sequences]
+                seed = self.cfg.project.get("seed", 42)
+                batch_sampler = LengthBucketBatchSampler(
+                    lengths=lengths,
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    seed=seed,
+                    drop_last=True,
+                    jitter_fraction=self.length_bucket_jitter,
+                )
+                return DataLoader(
+                    self.train_dataset,
+                    batch_sampler=batch_sampler,
+                    num_workers=self.num_workers,
+                    pin_memory=self.pin_memory,
+                    collate_fn=dynamic_padding_collate,
+                )
             return DataLoader(
                 self.train_dataset,
                 batch_size=self.batch_size,

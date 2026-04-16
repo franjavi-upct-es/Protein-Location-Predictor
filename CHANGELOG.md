@@ -202,6 +202,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `make sdpa-smoke` target that verifies the patch loads and
   produces numerically equivalent outputs on the host installation.
 
+- New `LengthBucketBatchSampler` in `src/data/samplers.py`. Groups
+  protein sequences of similar length into the same training batch to
+  minimize padding waste, which is a significant compute drain on
+  heavy-tailed length distributions like UniProt. Opt-in via
+  `training.use_length_bucketing`. Wired into `ProteinDataModule.train_dataloader`
+  with a clean fallback to the previous random-shuffled path. Validation
+  and test loaders are unchanged. Tests in `tests/unit/test_samplers.py`
+  verify coverage, determinism, and that bucketing reduces padding waste
+  by at least 4× on a power-law length distribution.
+
+- Empirical batch-size auto-tuning in `src/training/auto_batch_size.py`.
+  When `training.auto_batch_size: true` and a CUDA GPU is available,
+  the trainer probes batch sizes from largest to smallest by running a
+  forward+backward on a synthetic batch and catching
+  `torch.cuda.OutOfMemoryError`. The result is cached in
+  `.cache/auto_batch_size.json` keyed by a hash of the relevant
+  configuration fields, so subsequent runs are instant. Also exposed
+  as a standalone CLI: `make auto-batch-size`.
+
+- New `RuntimeFingerprintCallback` in `src/training/runtime_fingerprint.py`.
+  Captures GPU + driver + CUDA version, package versions, git commit
+  SHA + dirty flag, SHA-256 of the resolved configuration, and SHA-256
+  of each split CSV at training start. Persisted as JSON under
+  `reports/fingerprints/<run_id>.json` and the most relevant fields are
+  also logged to MLflow as hyperparameters. Failures during fingerprint
+  capture are logged but never block training. Registered automatically
+  in `_build_callbacks` so every training run is reproducible.
+
+- New end-to-end smoke test in `tests/integration/test_end_to_end_smoke.py`.
+  Marked `@pytest.mark.slow`. Generates 60 synthetic protein sequences
+  with synthetic location labels, builds a minimal in-memory config
+  pointing at `facebook/esm2_t6_8M_UR50D`, runs the full pipeline
+  (DataModule → LightningModule → Trainer.fit for 2 epochs → forward
+  pass on the test loader). Asserts that the trainer steps at least
+  once and that the trained model produces logits of the correct shape.
+  Available as `make smoke`.
+
 ## [1.0.0] - Previous version
 
 - Yeast-only data from UniProt
