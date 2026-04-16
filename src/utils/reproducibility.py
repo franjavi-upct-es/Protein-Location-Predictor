@@ -5,7 +5,8 @@ Reproducibility utilities.
 Ensures determinisitc behaviour across runs by seeding all relevant
 random number generators and configuring PyTorch backends.
 
-Usage:
+Usage::
+
     from src.utils.reproducibility import seed_everything
     seed_everything(42)
 """

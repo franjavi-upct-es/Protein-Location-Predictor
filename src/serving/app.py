@@ -8,7 +8,8 @@ Endpoints:
   GET  /health          — Health check and model info
   GET  /labels          — List of supported location classes
 
-Usage:
+Usage::
+
     uv run uvicorn src.serving.app:app --host 0.0.0.0 --port 8000
     uv run python -m src.serving.app
 """

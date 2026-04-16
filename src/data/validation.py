@@ -5,7 +5,8 @@ Data validation and integrity checks.
 Provides validation functions for raw data, processed data, and splits
 to catch schema errors, distribution drift, and leakage early.
 
-Usage:
+Usage::
+
     from src.data.validation import  validate_raw_data, validate_splits
     issues = validate_raw_data(df)
     issues = validate_splits(splits, cfg)

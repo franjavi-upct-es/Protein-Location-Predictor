@@ -6,7 +6,8 @@ Parses UniProt subcellular location strings into structured multi-label
 annotations, maps them to canonical location classes via configurable
 hierarchical grouping, and filters by sequence validity and class frequency.
 
-Usage:
+Usage::
+
     from src.data.processing import process_data
     df = process_data(cfg)
 """
@@ -42,7 +43,8 @@ def parse_location_string(location_string: str | float) -> list[str]:
     Returns:
         List of cleaned location strings, or empty list if unparseable.
 
-    Examples:
+    Examples::
+
         >>> parse_location_string(
         ...     "SUBCELLULAR LOCATION: Nucleus {ECO:0000269}. Cytoplasm."
         ... )

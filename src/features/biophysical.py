@@ -8,7 +8,8 @@ toward membranes, highly charged proteins toward the nucleus).
 
 Uses BioPython's ProteinAnalysis for the heavy lifting.
 
-Usage:
+Usage::
+
     from src.features.biophysical import compute_biophysical_features
     features = compute_biophysical_features(sequences, cfg)
 """

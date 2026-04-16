@@ -5,7 +5,8 @@ Centralized configuration management.
 Loads YAML config with a layered merge strategy:
     base.yaml  <--  training.yaml / inference.yaml  <--  CLI overrides
 
-Usage:
+Usage::
+
     from src.utils.config import load_config
     cfg = load_config(
         overrides=[
@@ -110,7 +111,8 @@ def _apply_dot_override(cfg: dict, key_path: str, value: str) -> None:
 class DotDict(dict):
     """A dict subclass that supports attribute-style access for nested keys.
 
-    Example:
+    Example::
+
         cfg = DotDict({"model": {"lora": {"rank": 8}}})
         assert cfg.model.lora.rank == 8
     """
@@ -211,7 +213,8 @@ def load_config(
 def resolve_path(cfg: DotDict, key: str) -> Path:
     """Resolve a config path key relative to the project root.
 
-    Example:
+    Example::
+
         model_dir = resolve_path(cfg, "paths.models_dir")
     """
     root = Path(cfg.project_root)

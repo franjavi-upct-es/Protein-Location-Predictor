@@ -7,7 +7,8 @@ Provides a consistent logging interface across all modules with:
   - Optional file output with rotation
   - Structured context fields (e.g. epoch, batch, GPU memory)
 
-Usage:
+Usage::
+
     from src.utils.logging import get_logger
     logger = get_logger(__name__)
     logger.info("Training started", extra={"epoch": 1, "lr": 2e-4})
@@ -161,10 +162,10 @@ def get_logger(name: str) -> logging.Logger:
     Get a logger instance scoped to the given module name.
 
     The logger is a child of the 'src' root logger, so it inherits
-    the handlers and level configured by setup_logging().
+    the handlers and level configured by ``setup_logging()``.
 
     Args:
-        name: Typically __name__ from the calling module.
+        name: Typically ``__name__`` from the calling module.
 
     Returns:
         A logging.Logger instance.

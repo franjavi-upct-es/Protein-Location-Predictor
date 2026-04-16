@@ -6,7 +6,8 @@ Downloads reviewed (Swiss-Prot) proteins with subcellular location
 annotations from multiple organisms using the UniProt REST API with
 cursor-based pagination.
 
-Usage:
+Usage::
+
     from src.data.download import download_proteins
 
 CLI:

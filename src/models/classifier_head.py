@@ -6,7 +6,8 @@ An MLP that takes ESM-2 pooled representations (optionally concatenated
 with external feature vectors) and ouputs per-class logits for sigmoid
 multi-label prediction.
 
-Usage:
+Usage::
+
     from src.models.classifier_head import ClassifierHead
     head = ClassifierHead(input_dim=640, num_classes=9, cfg=cfg)
 """

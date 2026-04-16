@@ -10,7 +10,8 @@ Orchestrates the full training pipeline:
   5. Configure Lightning Trainer with callbacks and MLflow
   6. Train with early stopping and checkpointing
 
-Usage:
+Usage::
+
     uv run python -m src.training.train
     uv run python -m src.training.train \
         --overrides model.lora.rank=16 training.max_epochs=5

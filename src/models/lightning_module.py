@@ -6,7 +6,8 @@ Wraps the ESM-2 + LoRA backbone and classifier head into a single
 trainable module with differential learning rates, cosine warmup
 scheduling, and comprehensive metric logging.
 
-Usage:
+Usage::
+
     from src.models.lightning_module import ProteinLocalizationModule
     model = ProteinLocalizationModule(cfg, label_list)
 """

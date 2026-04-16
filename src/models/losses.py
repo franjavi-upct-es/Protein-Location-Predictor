@@ -9,7 +9,8 @@ Provides:
 
 All losses operate on raw logits (pre-sigmoid) for numerical stability.
 
-Usage:
+Usage::
+
     from src.models.losses import CombinedLoss
     criterion = CombinedLoss.from_config(cfg, label_list, class_frequencies)
 """

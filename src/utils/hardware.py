@@ -6,7 +6,8 @@ Detects the available GPU (or CPU / Apple Silicon), profiles its VRAM,
 and returns recommended training parameters by matching against known
 GPU profiles or falling back to VRAM-based tiers.
 
-Usage:
+Usage::
+
     from src.utils.hardware import detect_hardware, HardwareProfile
     hw = detect_hardware(cfg)
     print(hw.device, hw.precision, hw.batch_size)
@@ -201,7 +202,8 @@ def _normalize_gpu_name(name: str) -> str:
     """
     Normalize a GPU name for matching against profile keys.
 
-    Examples:
+    Examples::
+
         'NVIDIA GeForce RTX 5060' -> 'RTX_5060'
         'NVIDIA RTX A4000'        -> 'RTX_A4000'
     """

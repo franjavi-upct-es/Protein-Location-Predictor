@@ -6,7 +6,7 @@
 
 .PHONY: help sync sync-dev test test-fast test-cov lint format typecheck \
         quality clean download process train serve docker-build docker-run \
-        hw-detect vram-estimate qlora-smoke lock
+        hw-detect vram-estimate qlora-smoke sdpa-smoke lock
 
 # ---------------------------------------------------------------------------
 # Help
@@ -91,14 +91,36 @@ vram-estimate: ## Estimate VRAM usage for default configuration
 
 qlora-smoke: ## Validate the QLoRA path on the configured backbone (requires CUDA + bitsandbytes)
 	uv run python -c "\
+	import sys; \
 	import torch; \
-	from src.models.esm_lora import build_esm_lora_backbone; \
+	from src.models.esm_lora import build_esm_lora_backbone, get_quantization_runtime_issue; \
 	from src.utils.config import load_config; \
+	issue = get_quantization_runtime_issue(); \
+	issue and (print(f'QLoRA smoke skipped: {issue}'), sys.exit(0)); \
 	cfg = load_config(overrides=['model.quantization.enabled=true']); \
 	m = build_esm_lora_backbone(cfg, enable_gradient_checkpointing=True).to('cuda'); \
 	print('Quantized backbone loaded OK on', next(m.parameters()).device); \
 	allocated_gb = torch.cuda.memory_allocated() / (1024**3); \
 	print(f'VRAM allocated after load: {allocated_gb:.2f} GB')"
+
+sdpa-smoke: ## Validate the SDPA patch loads and produces equivalent outputs
+	uv run python -c "\
+	import torch; \
+	from transformers import EsmModel, AutoTokenizer; \
+	from src.models.sdpa_patch import patch_esm_sdpa, unpatch_esm_sdpa; \
+	name = 'facebook/esm2_t6_8M_UR50D'; \
+	tok = AutoTokenizer.from_pretrained(name); \
+	enc = tok(['MSKGEELFTGVVPILVELDG', 'MQIFVKTLTGKTITLEVEPSDT'], return_tensors='pt', padding=True); \
+	unpatch_esm_sdpa(); \
+	ref_model = EsmModel.from_pretrained(name, add_pooling_layer=False).eval(); \
+	ref = ref_model(**enc).last_hidden_state; \
+	patch_esm_sdpa(); \
+	sdpa_model = EsmModel.from_pretrained(name, add_pooling_layer=False).eval(); \
+	out = sdpa_model(**enc).last_hidden_state; \
+	diff = (ref - out).abs().max().item(); \
+	print(f'Max abs diff stock vs SDPA: {diff:.2e}'); \
+	assert diff < 1e-4, 'SDPA patch is not numerically equivalent'; \
+	print('SDPA patch verified OK')"
 
 # ---------------------------------------------------------------------------
 # Docker

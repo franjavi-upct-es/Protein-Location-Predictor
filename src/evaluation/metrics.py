@@ -5,7 +5,8 @@ Comprehensive evaluation metrics for multi-label protein localization.
 Generates per-class metrics, confusion-style analysis, calibration
 assessment, and publication-ready visualizations.
 
-Usage:
+Usage::
+
     from src.evaluation.metrics import evaluate_model, generate_report
     results = evaluate_model(model, dataloader, label_list)
     generate_report(results, output_dir)

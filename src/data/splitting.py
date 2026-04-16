@@ -8,7 +8,8 @@ both training and evaluation sets.
 
 Falls back to stratified random splitting if MMseqs2 is not available.
 
-Usage:
+Usage::
+
     from src.data.splitting import split_data
     splits = split_data(cfg, df)
 """

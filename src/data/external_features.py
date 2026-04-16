@@ -9,7 +9,8 @@ that can be concatenated with ESM-2 embeddings in the classifier head.
 Gracefully degrades: any unavailable external tool produces zero
 columns instead of crashing the pipeline.
 
-Usage:
+Usage::
+
     from src.data.external_features import compute_all_external_features
     features = compute_all_external_features(sequences, cfg)
 """

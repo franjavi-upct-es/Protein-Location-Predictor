@@ -6,7 +6,8 @@ Wraps TMHMM 2.0 or DeepTMHMM as optional external tools. Predicts the
 number of transmembrane helices per protein (strong indicator of membrane
 localization). Gracefully degrades to zero vectors when not available.
 
-Usage:
+Usage::
+
     from src.features.transmembrane import predict_transmembrane
     features = predict_transmembrane(sequences, cfg)
 """

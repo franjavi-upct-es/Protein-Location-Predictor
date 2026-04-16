@@ -5,7 +5,8 @@ Inference-time predictor class.
 Loads a trained checkpoint and provides single/batch prediction with
 configurable thresholds and top-k ranking.
 
-Usage:
+Usage::
+
     from src.serving.predictor import Predictor
     predictor = Predictor.from_checkpoint("models/checkpoints/best.ckpt", cfg)
     result = predictor.predict("MSKGEEL...")

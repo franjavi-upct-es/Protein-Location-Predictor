@@ -7,7 +7,8 @@ whether each protein has a signal peptide (strong indicator of secretory
 pathway / extracellular localization). Gracefully degrades to zero vectors
 when SignalP is not available.
 
-Usage:
+Usage::
+
     from src.features.signal_peptide import predict_signal_peptides
     features = predict_signal_peptides(sequences, cfg)
 """

@@ -184,6 +184,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     4-bit, applies LoRA, and runs a forward pass end-to-end.
 - New `make qlora-smoke` target that loads the configured backbone
   with quantization enabled and reports VRAM usage after load.
+- Optional SDPA / Flash Attention 2 path for ESM-2 via a monkey-patch
+  in `src/models/sdpa_patch.py`. The patch replaces
+  `EsmSelfAttention.forward` with a version that calls
+  `torch.nn.functional.scaled_dot_product_attention`, which
+  transparently dispatches to Flash Attention 2 on Ampere/Ada/Blackwell
+  GPUs and reduces activation memory ~30-40% on long sequences. The
+  patch is idempotent, opt-in via `model.backbone.use_sdpa_attention`,
+  and falls back to the stock forward in any case it cannot represent
+  exactly (`output_attentions=True`, cross-attention, past KV cache,
+  head masks).
+- New tests `tests/unit/test_sdpa_patch.py`:
+  - Patch lifecycle tests (apply, idempotent, unpatch).
+  - Numerical equivalence test that runs the smallest ESM-2 variant
+    through both paths and asserts max absolute difference < 1e-4.
+  - Fallback test for `output_attentions=True`.
+- New `make sdpa-smoke` target that verifies the patch loads and
+  produces numerically equivalent outputs on the host installation.
 
 ## [1.0.0] - Previous version
 

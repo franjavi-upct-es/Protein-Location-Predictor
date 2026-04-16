@@ -5,7 +5,8 @@ PyTorch Dataset and Lightning DataModule for protein sequences.
 Provides on-the-fly tokenization with the ESM-2 tokenizer and multi-hot
 label enconding for multi-label classification.
 
-Usage:
+Usage::
+
     from src.data.datasets import ProteinDataModule
     dm = ProteinDataModule(cfg, label_list=["Nucleus", "Cytoplasm", ...])
     dm.setup()

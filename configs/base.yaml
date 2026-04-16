@@ -106,6 +106,10 @@ model:
     embedding_dim: 640
     num_layers: 30
     max_position_embeddings: 1024
+    # Use PyTorch SDPA (Flash Attention 2 on Ampere+) instead of the
+    # stock ESM-2 attention. Reduces activation memory ~30-40% on long
+    # sequences. Disabled by default; enable to validate empirically.
+    use_sdpa_attention: false
 
   # 4-bit / 8-bit quantization via bitsandbytes (QLoRA path).
   # Disabled by default so CPU-only environments and existing tests

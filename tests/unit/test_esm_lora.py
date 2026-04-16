@@ -12,8 +12,10 @@ from unittest.mock import MagicMock
 
 import pytest
 import torch
+import torch.nn as nn
 
 from src.models.esm_lora import (
+    _resolve_lora_target_modules,
     extract_sequence_representation,
     get_embedding_dim,
 )
@@ -112,3 +114,80 @@ class TestGetEmbeddingDim:
     def test_default_value(self) -> None:
         cfg = DotDict.from_dict({"model": {"backbone": {}}})
         assert get_embedding_dim(cfg) == 640
+
+
+# ---------------------------------------------------------------------------
+# LoRA target resolution
+# ---------------------------------------------------------------------------
+
+
+class _DummyLinear(nn.Module):
+    def __init__(self, supports_lora: bool = True) -> None:
+        super().__init__()
+        self.supports_lora = supports_lora
+        self.weight = nn.Parameter(torch.randn(2, 2))
+
+
+class TestResolveLoraTargetModules:
+    """Tests for target-module expansion and filtering."""
+
+    def _make_model(self) -> nn.Module:
+        model = nn.Module()
+        model.encoder = nn.Module()
+        model.encoder.layer = nn.ModuleList([nn.Module()])
+        block = model.encoder.layer[0]
+
+        block.attention = nn.Module()
+        block.attention.self = nn.Module()
+        block.attention.self.query = _DummyLinear()
+        block.attention.self.key = _DummyLinear()
+        block.attention.self.value = _DummyLinear()
+        block.attention.output = nn.Module()
+        block.attention.output.dense = _DummyLinear()
+
+        block.intermediate = nn.Module()
+        block.intermediate.dense = _DummyLinear()
+
+        block.output = nn.Module()
+        block.output.dense = _DummyLinear()
+
+        model.pooler = nn.Module()
+        model.pooler.dense = _DummyLinear(supports_lora=False)
+
+        return model
+
+    def test_non_quantized_mode_keeps_configured_patterns(self) -> None:
+        model = self._make_model()
+        configured = ["query", "key", "value", "dense"]
+
+        resolved = _resolve_lora_target_modules(
+            base_model=model,
+            configured_target_modules=configured,
+            use_quantization=False,
+        )
+
+        assert resolved == configured
+
+    def test_quantized_mode_expands_and_skips_incompatible_modules(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        model = self._make_model()
+
+        monkeypatch.setattr(
+            "src.models.esm_lora._supports_peft_bnb_lora_target",
+            lambda module: getattr(module, "supports_lora", True),
+        )
+
+        resolved = _resolve_lora_target_modules(
+            base_model=model,
+            configured_target_modules=["query", "key", "value", "dense"],
+            use_quantization=True,
+        )
+
+        assert "encoder.layer.0.attention.self.query" in resolved
+        assert "encoder.layer.0.attention.self.key" in resolved
+        assert "encoder.layer.0.attention.self.value" in resolved
+        assert "encoder.layer.0.attention.output.dense" in resolved
+        assert "encoder.layer.0.intermediate.dense" in resolved
+        assert "encoder.layer.0.output.dense" in resolved
+        assert "pooler.dense" not in resolved
