@@ -239,6 +239,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   once and that the trained model produces logits of the correct shape.
   Available as `make smoke`.
 
+### Sprint 6 — Trustworthy Results (in progress)
+
+#### Added
+
+- **Pydantic v2 configuration schema** in `src/utils/config_schema.py`.
+  Defines an explicit type and range constraint for every section the
+  project authors. The new `validate_config()` entry point catches
+  typos like `lora.rnak: 8` and out-of-range values like negative
+  learning rates before training starts. Wired into `train.py:main()`
+  via `load_config(..., validate=True)`. Existing tests use
+  `validate=False` (the default) to keep working with intentionally
+  minimal config dicts. New tests in `tests/unit/test_config_schema.py`.
+- `pydantic>=2.5.0` added to project dependencies.
+
+- **Frozen ESM-2 + linear probe baseline** in
+  `src/baselines/linear_probe.py`. Loads ESM-2 without LoRA, mean-pools
+  per-protein embeddings, fits a one-vs-rest logistic regression with
+  balanced class weights, and writes
+  `reports/baselines/linear_probe.json`. This is the lower-bound
+  baseline: any fine-tuned model that does not beat it has a problem.
+  Available as `make linear-probe`.
+
+- **Embedding cache** in `src/baselines/embedding_cache.py` shared by
+  every frozen-backbone baseline. Caches per-split embeddings on disk
+  under `.cache/embeddings/`, keyed by `(backbone, pooling, max_length,
+split file mtime+size)`. A re-download of the splits invalidates the
+  cache automatically. The XGBoost and linear probe baselines reuse the
+  same embeddings transparently.
+
+- **Frozen ESM-2 + XGBoost baseline** in
+  `src/baselines/xgboost_baseline.py`. Replicates the v1.0 architecture
+  on the v2.0 multi-species, homology-aware splits to give an
+  apples-to-apples comparison with v1.0 published numbers. Trains one
+  classifier per class with `scale_pos_weight` matched to class
+  frequencies. Writes `reports/baselines/xgboost_baseline.json`.
+  Available as `make xgboost-baseline`. XGBoost is now in the optional
+  `baselines` dependency group: `uv sync --group baselines`.
+
+- **DeepLoc 2.0 benchmark integration** in
+  `src/baselines/deeploc_benchmark.py`. Loads the DeepLoc 2.0 test set
+  from `benchmarks/deeploc/`, maps DeepLoc location names to project
+  classes via a configurable label map, runs the latest checkpoint on
+  every sequence, and writes `reports/benchmarks/deeploc.json`. The
+  dataset is not bundled (it has its own license terms); see
+  `benchmarks/deeploc/README.md` for instructions on how to obtain it.
+  Available as `make deeploc-benchmark`.
+
+- **Per-organism evaluation breakdown** in
+  `src/evaluation/per_organism.py`. Slices predictions by `organism_id`
+  and computes `compute_metrics` independently per slice, with pretty
+  organism names for the common UniProt taxonomy IDs. Helps detect
+  silent regressions on yeast (the v1.0 dominant organism). Skips
+  organisms with fewer than `min_samples` rows.
+
+- **Per-class threshold tuning** in
+  `src/evaluation/threshold_tuning.py`. Sweeps thresholds in
+  [0.05, 0.95] per class on the validation set to maximize F1, then
+  persists the result as `models/checkpoints/thresholds.json`. The
+  `Predictor` loads this file at startup and uses per-class thresholds
+  in `predict()` instead of the global `threshold=0.5`. Wired into
+  `train.py` so every training run automatically produces tuned
+  thresholds. Tests in `tests/unit/test_sprint6_components.py`.
+
+- **Comparison report generator** in
+  `src/evaluation/comparison_report.py`. Reads every JSON metrics file
+  produced during the sprint (linear probe, XGBoost, DeepLoc, trained
+  model) and emits a single Markdown report at
+  `reports/sprint-6-comparison.md` comparing them on the headline
+  metrics, plus per-class breakdowns when available. Missing inputs
+  are flagged as "not available" so the report makes it obvious what
+  is still pending. Available as `make comparison-report`.
+
+- New Makefile targets: `linear-probe`, `xgboost-baseline`,
+  `deeploc-benchmark`, `comparison-report`, `baselines` (runs both
+  baselines back-to-back).
+
 ## [1.0.0] - Previous version
 
 - Yeast-only data from UniProt

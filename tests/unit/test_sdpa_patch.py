@@ -20,9 +20,7 @@ def test_patch_injects_sdpa_when_unspecified(
     """The patch should default future ESM loads to SDPA."""
     captured: dict[str, Any] = {}
 
-    def fake_from_pretrained(
-        cls, name: str, *args: Any, **kwargs: Any
-    ) -> dict:
+    def fake_from_pretrained(cls, name: str, *args: Any, **kwargs: Any) -> dict:
         captured["name"] = name
         captured["kwargs"] = kwargs
         return {"name": name, "kwargs": kwargs}
@@ -51,9 +49,7 @@ def test_patch_respects_explicit_attention_choice(
     """An explicit attention implementation should win over the default."""
     captured: dict[str, Any] = {}
 
-    def fake_from_pretrained(
-        cls, name: str, *args: Any, **kwargs: Any
-    ) -> dict:
+    def fake_from_pretrained(cls, name: str, *args: Any, **kwargs: Any) -> dict:
         captured["kwargs"] = kwargs
         return {"name": name, "kwargs": kwargs}
 

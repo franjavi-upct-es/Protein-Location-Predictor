@@ -67,9 +67,7 @@ class RuntimeFingerprintCallback(pl.Callback):
     # Lightning hook
     # ------------------------------------------------------------------
 
-    def on_train_start(
-        self, trainer: pl.Trainer, pl_module: pl.LightningModule
-    ) -> None:
+    def on_train_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         try:
             self._fingerprint = self._build_fingerprint()
             self._persist_to_disk(trainer)
@@ -102,9 +100,7 @@ class RuntimeFingerprintCallback(pl.Callback):
             "env": {
                 "PYTHONHASHSEED": os.environ.get("PYTHONHASHSEED"),
                 "CUDA_VISIBLE_DEVICES": os.environ.get("CUDA_VISIBLE_DEVICES"),
-                "CUBLAS_WORKSPACE_CONFIG": os.environ.get(
-                    "CUBLAS_WORKSPACE_CONFIG"
-                ),
+                "CUBLAS_WORKSPACE_CONFIG": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
             },
         }
 
@@ -133,9 +129,7 @@ class RuntimeFingerprintCallback(pl.Callback):
                     "available": True,
                     "device_name": props.name,
                     "compute_capability": (f"{props.major}.{props.minor}"),
-                    "total_memory_gb": round(
-                        props.total_memory / (1024**3), 2
-                    ),
+                    "total_memory_gb": round(props.total_memory / (1024**3), 2),
                     "torch_cuda_version": torch.version.cuda,
                     "torch_cudnn_version": (
                         torch.backends.cudnn.version()
@@ -239,9 +233,7 @@ class RuntimeFingerprintCallback(pl.Callback):
         # Drop project_root because it varies per machine
         cfg_copy = dict(self.cfg)
         cfg_copy.pop("project_root", None)
-        payload = json.dumps(cfg_copy, sort_keys=True, default=str).encode(
-            "utf-8"
-        )
+        payload = json.dumps(cfg_copy, sort_keys=True, default=str).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
 
     def _split_hashes(self) -> dict[str, str | None]:
@@ -278,9 +270,7 @@ class RuntimeFingerprintCallback(pl.Callback):
             run_id = self._fingerprint["timestamp_utc"].replace(":", "-")
 
         out_path = out_dir / f"{run_id}.json"
-        out_path.write_text(
-            json.dumps(self._fingerprint, indent=2, sort_keys=True)
-        )
+        out_path.write_text(json.dumps(self._fingerprint, indent=2, sort_keys=True))
         logger.info(f"Runtime fingerprint written to {out_path}")
 
     def _log_to_tracker(self, trainer: pl.Trainer) -> None:
@@ -292,23 +282,13 @@ class RuntimeFingerprintCallback(pl.Callback):
 
         # Log a small flat subset as hyperparameters / params
         flat = {
-            "fp.git_sha": self._fingerprint.get("git", {}).get(
-                "commit_sha", "unknown"
-            )[:12],
-            "fp.git_dirty": self._fingerprint.get("git", {}).get(
-                "dirty", False
-            ),
-            "fp.gpu": self._fingerprint.get("gpu", {}).get(
-                "device_name", "cpu"
-            ),
-            "fp.cuda": self._fingerprint.get("gpu", {}).get(
-                "torch_cuda_version", "n/a"
-            ),
+            "fp.git_sha": self._fingerprint.get("git", {}).get("commit_sha", "unknown")[:12],
+            "fp.git_dirty": self._fingerprint.get("git", {}).get("dirty", False),
+            "fp.gpu": self._fingerprint.get("gpu", {}).get("device_name", "cpu"),
+            "fp.cuda": self._fingerprint.get("gpu", {}).get("torch_cuda_version", "n/a"),
             "fp.config_sha": self._fingerprint["config_sha256"][:12],
             "fp.torch": self._fingerprint["packages"].get("torch", "n/a"),
-            "fp.transformers": self._fingerprint["packages"].get(
-                "transformers", "n/a"
-            ),
+            "fp.transformers": self._fingerprint["packages"].get("transformers", "n/a"),
         }
         try:
             if hasattr(pl_logger, "log_hyperparams"):

@@ -6,8 +6,9 @@
 
 .PHONY: help sync sync-dev test test-fast test-cov lint format typecheck \
         quality clean download process train serve docker-build docker-run \
-        hw-detect vram-estimate qlora-smoke sdpa-smoke lock auto-batch-size \
-				smoke
+        hw-detect vram-estimate qlora-smoke sdpa-smoke smoke auto-batch-size \
+        linear-probe xgboost-baseline deeploc-benchmark comparison-report \
+        baselines lock
 
 # ---------------------------------------------------------------------------
 # Help
@@ -159,3 +160,21 @@ clean-data: ## Remove all downloaded and processed data (use with caution)
 
 clean-all: clean clean-data ## Remove everything (artifacts + data)
 	rm -rf models/* mlruns/
+
+# ---------------------------------------------------------------------------
+# Baselines, benchmarks, and comparison
+# ---------------------------------------------------------------------------
+
+linear-probe: ## Train and evaluate the frozen-ESM-2 linear probe baseline
+	uv run python -m src.baselines.linear_probe
+
+xgboost-baseline: ## Train and evaluate the frozen-ESM-2 + XGBoost baseline
+	uv run python -m src.baselines.xgboost_baseline
+
+deeploc-benchmark: ## Evaluate the latest checkpoint on DeepLoc 2.0 test set
+	uv run python -m src.baselines.deeploc_benchmark
+
+comparison-report: ## Build the Sprint 6 comparison Markdown report
+	uv run python -m src.evaluation.comparison_report
+
+baselines: linear-probe xgboost-baseline ## Run all baselines

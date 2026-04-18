@@ -100,9 +100,7 @@ def validate_raw_data(df: pd.DataFrame) -> ValidationReport:
         if not all(c in valid_chars for c in str(seq).upper()):
             invalid_seqs += 1
     if invalid_seqs > 0:
-        report.add_warning(
-            f"{invalid_seqs} sequences contain non-standard amino acids"
-        )
+        report.add_warning(f"{invalid_seqs} sequences contain non-standard amino acids")
 
     report.stats["unique_accessions"] = df["accession"].nunique()
     report.stats["sequence_length_mean"] = df["sequence"].str.len().mean()
@@ -168,19 +166,12 @@ def validate_processed_data(
         ratio = label_counts.max() / label_counts.min()
         report.stats["max_min_class_ratio"] = round(ratio, 1)
         if ratio > 50:
-            report.add_warning(
-                "Extreme class imbalance: "
-                f"largest/smallest ratio = {ratio:.1f}"
-            )
+            report.add_warning(f"Extreme class imbalance: largest/smallest ratio = {ratio:.1f}")
 
     # Multi-label statistics
     labels_per_protein = df["locations"].apply(len)
-    report.stats["avg_labels_per_protein"] = round(
-        labels_per_protein.mean(), 2
-    )
-    report.stats["multi_label_fraction"] = round(
-        (labels_per_protein > 1).mean(), 3
-    )
+    report.stats["avg_labels_per_protein"] = round(labels_per_protein.mean(), 2)
+    report.stats["multi_label_fraction"] = round((labels_per_protein > 1).mean(), 3)
 
     return report
 
@@ -231,9 +222,7 @@ def validation_processed_data(
 
     # Check minimum samples
     below_min_dict = {
-        label: count
-        for label, count in label_counts.items()
-        if count < min_samples_per_class
+        label: count for label, count in label_counts.items() if count < min_samples_per_class
     }
     if len(below_min_dict) > 0:
         report.add_warning(
@@ -247,19 +236,12 @@ def validation_processed_data(
         ratio = label_counts.max() / label_counts.min()
         report.stats["max_min_class_ratio"] = round(ratio, 1)
         if ratio > 50:
-            report.add_warning(
-                "Extreme class imbalance: "
-                f"largest/smallest ratio = {ratio:.1f}"
-            )
+            report.add_warning(f"Extreme class imbalance: largest/smallest ratio = {ratio:.1f}")
 
     # Multi-label statistics
     labels_per_protein = df["locations"].apply(len)
-    report.stats["avg_labels_per_protein"] = round(
-        labels_per_protein.mean(), 2
-    )
-    report.stats["multi_label_fraction"] = round(
-        (labels_per_protein > 1).mean(), 3
-    )
+    report.stats["avg_labels_per_protein"] = round(labels_per_protein.mean(), 2)
+    report.stats["multi_label_fraction"] = round((labels_per_protein > 1).mean(), 3)
 
     return report
 
@@ -288,9 +270,7 @@ def validate_splits(
         report.stats[f"{name}_size"] = len(df)
 
     # Accession leakage
-    split_accessions = {
-        name: set(df["accession"]) for name, df in splits.items()
-    }
+    split_accessions = {name: set(df["accession"]) for name, df in splits.items()}
 
     for name_a, accs_a in split_accessions.items():
         for name_b, accs_b in split_accessions.items():
@@ -304,10 +284,7 @@ def validate_splits(
                 )
 
     # Distribution comparison (if locations available)
-    if all(
-        "locations" in df.columns or "locations_str" in df.columns
-        for df in splits.values()
-    ):
+    if all("locations" in df.columns or "locations_str" in df.columns for df in splits.values()):
         for name, df in splits.items():
             if "locations" not in df.columns:
                 df = df.copy()

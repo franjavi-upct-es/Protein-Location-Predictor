@@ -80,12 +80,8 @@ class TestComputeMetrics:
 
         metrics = compute_metrics(predictions, targets, LABEL_LIST)
         assert metrics["overall"]["exact_match_ratio"] == 0.0  # Not exact
-        assert (
-            metrics["per_class"]["Cytoplasm"]["f1"] == 1.0
-        )  # Class 0 perfect
-        assert (
-            metrics["per_class"]["Membrane"]["recall"] == 0.0
-        )  # Class 1 missed
+        assert metrics["per_class"]["Cytoplasm"]["f1"] == 1.0  # Class 0 perfect
+        assert metrics["per_class"]["Membrane"]["recall"] == 0.0  # Class 1 missed
 
 
 class TestFormatClassificationReport:

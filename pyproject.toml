@@ -44,6 +44,7 @@ dependencies = [
   "pillow>=12.2.0",
   "torchvision>=0.21.0",
   "torchaudio>=2.11.0",
+  "pydantic>=2.12.5",
 ]
 
 [project.scripts]
@@ -55,6 +56,9 @@ prot-loc-download = "src.data.download:main"
 # UV dependency groups
 # ---------------------------------------------------------------------------
 [dependency-groups]
+baselines = [
+    "xgboost>=3.2.0",
+]
 dev = [
   "pytest>=9.0.3",
   "pytest-cov>=4.1.0",
@@ -94,7 +98,7 @@ packages = ["src"]
 # ---------------------------------------------------------------------------
 [tool.ruff]
 target-version = "py311"
-line-length = 79
+line-length = 100
 
 [tool.ruff.lint]
 select = [

@@ -26,9 +26,7 @@ from src.utils.config import DotDict
 # ---------------------------------------------------------------------------
 
 
-def _mock_model_output(
-    batch_size: int = 2, seq_len: int = 10, hidden_dim: int = 16
-):
+def _mock_model_output(batch_size: int = 2, seq_len: int = 10, hidden_dim: int = 16):
     """Create a mock model output with last_hidden_state."""
     output = MagicMock()
     output.last_hidden_state = torch.randn(batch_size, seq_len, hidden_dim)
@@ -61,9 +59,7 @@ class TestExtractSequenceRepresentation:
         output = _mock_model_output(batch_size=4, seq_len=20, hidden_dim=32)
         mask = torch.ones(4, 20, dtype=torch.long)
 
-        result = extract_sequence_representation(
-            output, mask, pooling="mean_cls"
-        )
+        result = extract_sequence_representation(output, mask, pooling="mean_cls")
         assert result.shape == (4, 64)  # 2 * hidden_dim
 
     def test_mean_pooling_respects_mask(self) -> None:
@@ -106,9 +102,7 @@ class TestGetEmbeddingDim:
     """Tests for embedding dimension extraction from config."""
 
     def test_returns_configured_value(self) -> None:
-        cfg = DotDict.from_dict(
-            {"model": {"backbone": {"embedding_dim": 640}}}
-        )
+        cfg = DotDict.from_dict({"model": {"backbone": {"embedding_dim": 640}}})
         assert get_embedding_dim(cfg) == 640
 
     def test_default_value(self) -> None:

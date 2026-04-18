@@ -105,9 +105,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             logger.info("Model loaded and ready for inference")
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
-            logger.warning(
-                "API will start without a model — predictions will fail"
-            )
+            logger.warning("API will start without a model — predictions will fail")
     else:
         logger.warning(
             "No model checkpoint found. API starting in degraded mode. "
@@ -156,9 +154,7 @@ def _require_model() -> Any:
     if _predictor is None:
         raise HTTPException(
             status_code=503,
-            detail=(
-                "Model not loaded. Train a model first and restart the server."
-            ),
+            detail=("Model not loaded. Train a model first and restart the server."),
         )
     return _predictor
 
@@ -204,17 +200,12 @@ async def predict_single(request: PredictionRequest) -> PredictionResponse:
     results = predictor.predict(request.sequence)
     elapsed = time.perf_counter() - start
 
-    logger.debug(
-        f"Prediction for {len(request.sequence)}aa sequence in {elapsed:.3f}s"
-    )
+    logger.debug(f"Prediction for {len(request.sequence)}aa sequence in {elapsed:.3f}s")
 
     return PredictionResponse(
         sequence_length=len(request.sequence),
         predictions=[
-            LocationPrediction(
-                location=r["location"], confidence=r["confidence"]
-            )
-            for r in results
+            LocationPrediction(location=r["location"], confidence=r["confidence"]) for r in results
         ],
         threshold=predictor.threshold,
     )
@@ -235,9 +226,7 @@ async def predict_batch(
         if len(item.sequence) > max_len:
             raise HTTPException(
                 status_code=422,
-                detail=(
-                    f"Sequence exceeds maximum length of {max_len} residues"
-                ),
+                detail=(f"Sequence exceeds maximum length of {max_len} residues"),
             )
         sequences.append(item.sequence)
 
@@ -245,9 +234,7 @@ async def predict_batch(
     batch_results = predictor.predict_batch(sequences)
     elapsed = time.perf_counter() - start
 
-    logger.info(
-        f"Batch prediction for {len(sequences)} sequences in {elapsed:.3f}s"
-    )
+    logger.info(f"Batch prediction for {len(sequences)} sequences in {elapsed:.3f}s")
 
     responses = []
     for seq, results in zip(sequences, batch_results, strict=True):
@@ -255,9 +242,7 @@ async def predict_batch(
             PredictionResponse(
                 sequence_length=len(seq),
                 predictions=[
-                    LocationPrediction(
-                        location=r["location"], confidence=r["confidence"]
-                    )
+                    LocationPrediction(location=r["location"], confidence=r["confidence"])
                     for r in results
                 ],
                 threshold=predictor.threshold,
@@ -283,7 +268,7 @@ def main() -> None:
     setup_logging(level=cfg.project.log_level)
 
     serving_cfg = cfg.get("serving", {})
-    host = serving_cfg.get("host", "0.0.0.0")  # noqa: S104  # nosec B104
+    host = serving_cfg.get("host", "127.0.0.1")
     port = serving_cfg.get("port", 8000)
     reload = serving_cfg.get("reload", False)
 

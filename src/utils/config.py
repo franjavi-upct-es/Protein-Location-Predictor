@@ -40,8 +40,7 @@ def find_project_root(start: Path | None = None) -> Path:
         if all((parent / s).exists() for s in _SENTINEL_FILES):
             return Path(parent)
     raise FileExistsError(
-        f"Could not locate project root (looker for {_SENTINEL_FILES}) "
-        f"starting from {current}"
+        f"Could not locate project root (looker for {_SENTINEL_FILES}) starting from {current}"
     )
 
 
@@ -57,11 +56,7 @@ def _deep_merge(base: dict, override: dict) -> dict:
     """Recursively merge *override* into *base*, returning a new dict."""
     merged = deepcopy(base)
     for key, value in override.items():
-        if (
-            key in merged
-            and isinstance(merged[key], dict)
-            and isinstance(value, dict)
-        ):
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
             merged[key] = _deep_merge(merged[key], value)
         else:
             merged[key] = deepcopy(value)
@@ -122,8 +117,7 @@ class DotDict(dict):
             value = self[key]
         except KeyError:
             raise AttributeError(
-                f"Config has no key '{key}'. "
-                f"Available keys: {list(self.keys())}"
+                f"Config has no key '{key}'. Available keys: {list(self.keys())}"
             ) from None
         return value
 
@@ -145,8 +139,7 @@ class DotDict(dict):
                 result[key] = cls.from_dict(value)
             elif isinstance(value, list):
                 result[key] = [
-                    cls.from_dict(item) if isinstance(item, dict) else item
-                    for item in value
+                    cls.from_dict(item) if isinstance(item, dict) else item for item in value
                 ]
             else:
                 result[key] = value
@@ -162,6 +155,7 @@ def load_config(
     mode: str = "training",
     config_dir: Path | str | None = None,
     overrides: list[str] | None = None,
+    validate: bool = False,
 ) -> DotDict:
     """Load the merged configuration.
 
@@ -206,6 +200,13 @@ def load_config(
 
     # 6. Inject project root as an absolute path
     cfg["project_root"] = str(PROJECT_ROOT)
+
+    # 7. Optional schema validation (opt-in to keep tests passing
+    # with intentionally minimal config dicts)
+    if validate:
+        from src.utils.config_schema import validate_config
+
+        cfg = validate_config(cfg)
 
     return DotDict.from_dict(cfg)
 

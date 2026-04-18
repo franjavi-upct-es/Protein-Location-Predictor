@@ -77,9 +77,7 @@ class ProteinDataset(Dataset):
                 .tolist()
             )
         else:
-            raise ValueError(
-                "DataFrame must have 'locations' or 'locations_str' column"
-            )
+            raise ValueError("DataFrame must have 'locations' or 'locations_str' column")
 
     def __len__(self) -> int:
         return len(self.sequences)
@@ -197,15 +195,9 @@ try:
             self.batch_size = training_cfg.get("batch_size", 2)
             self.num_workers = training_cfg.get("num_workers", 4)
             self.pin_memory = training_cfg.get("pin_memory", True)
-            self.use_length_bucketing = training_cfg.get(
-                "use_length_bucketing", False
-            )
-            self.length_bucket_jitter = training_cfg.get(
-                "length_bucket_jitter", 0.05
-            )
-            backbone_max_length = cfg.model.backbone.get(
-                "max_position_embeddings", 1024
-            )
+            self.use_length_bucketing = training_cfg.get("use_length_bucketing", False)
+            self.length_bucket_jitter = training_cfg.get("length_bucket_jitter", 0.05)
+            backbone_max_length = cfg.model.backbone.get("max_position_embeddings", 1024)
             requested_max_length = training_cfg.get("max_sequence_length")
             self.max_length = (
                 min(requested_max_length, backbone_max_length)
@@ -251,16 +243,12 @@ try:
                 train_df = self._load_split("train")
                 val_df = self._load_split("val")
                 train_ext = (
-                    compute_all_external_features(
-                        train_df["sequence"].tolist(), self.cfg
-                    )
+                    compute_all_external_features(train_df["sequence"].tolist(), self.cfg)
                     if has_ext
                     else None
                 )
                 val_ext = (
-                    compute_all_external_features(
-                        val_df["sequence"].tolist(), self.cfg
-                    )
+                    compute_all_external_features(val_df["sequence"].tolist(), self.cfg)
                     if has_ext
                     else None
                 )
@@ -286,9 +274,7 @@ try:
             if stage in ("test", None):
                 test_df = self._load_split("test")
                 test_ext = (
-                    compute_all_external_features(
-                        test_df["sequence"].tolist(), self.cfg
-                    )
+                    compute_all_external_features(test_df["sequence"].tolist(), self.cfg)
                     if has_ext
                     else None
                 )
@@ -356,6 +342,4 @@ try:
             )
 
 except ImportError:
-    logger.debug(
-        "pytorch_lightning not available — ProteinDataModule disabled"
-    )
+    logger.debug("pytorch_lightning not available — ProteinDataModule disabled")

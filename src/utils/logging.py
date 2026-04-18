@@ -112,9 +112,7 @@ class FileFormatter(logging.Formatter):
 _CONFIGURED = False
 
 
-def setup_logging(
-    level: str = "INFO", log_file: Path | str | None = None
-) -> None:
+def setup_logging(level: str = "INFO", log_file: Path | str | None = None) -> None:
     """
     Configure the root logger for the project.
 
@@ -144,9 +142,7 @@ def setup_logging(
     if log_file:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(
-            log_path, mode="a", encoding="utf-8"
-        )
+        file_handler = logging.FileHandler(log_path, mode="a", encoding="utf-8")
         file_handler.setFormatter(FileFormatter())
         root_logger.addHandler(file_handler)
 

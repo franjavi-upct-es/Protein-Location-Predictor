@@ -53,12 +53,8 @@ class VRAMMonitorCallback(pl.Callback):
         reserved = torch.cuda.memory_reserved() / (1024**3)
         peak = torch.cuda.max_memory_allocated() / (1024**3)
 
-        pl_module.log(
-            "gpu/allocated_gb", allocated, on_step=True, on_epoch=False
-        )
-        pl_module.log(
-            "gpu/reserved_gb", reserved, on_step=True, on_epoch=False
-        )
+        pl_module.log("gpu/allocated_gb", allocated, on_step=True, on_epoch=False)
+        pl_module.log("gpu/reserved_gb", reserved, on_step=True, on_epoch=False)
         pl_module.log("gpu/peak_gb", peak, on_step=True, on_epoch=False)
 
 
@@ -100,9 +96,7 @@ class GradientNormCallback(pl.Callback):
 
         if backbone_grads:
             avg = sum(backbone_grads) / len(backbone_grads)
-            pl_module.log(
-                "grad/backbone_norm", avg, on_step=True, on_epoch=False
-            )
+            pl_module.log("grad/backbone_norm", avg, on_step=True, on_epoch=False)
 
         if head_grads:
             avg = sum(head_grads) / len(head_grads)

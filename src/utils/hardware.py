@@ -49,18 +49,13 @@ class HardwareProfile:
     supports_bf16: bool = False
     supports_fp16: bool = False
 
-    matched_profile: str | None = (
-        None  # Name of the matched GPU profile, if any
-    )
+    matched_profile: str | None = None  # Name of the matched GPU profile, if any
 
     def summary(self) -> str:
         """Return a human-readable summary of the hardware profile."""
         lines = [
             f"Device:           {self.device_name} ({self.device})",
-            (
-                f"VRAM:             {self.vram_gb:.1f} GB total, "
-                f"{self.vram_free_gb:.1f} GB free"
-            ),
+            (f"VRAM:             {self.vram_gb:.1f} GB total, {self.vram_free_gb:.1f} GB free"),
             f"Architecture:     {self.architecture}",
             f"Precision:        {self.precision}",
             f"Batch size:       {self.batch_size}",
@@ -99,9 +94,7 @@ def _detect_cuda() -> dict[str, Any] | None:
             vram_free = free_bytes / (1024**3)
             vram_total = total_bytes / (1024**3)
         except Exception:
-            vram_free = (
-                props.total_memory - torch.cuda.memory_allocated(device_idx)
-            ) / (1024**3)
+            vram_free = (props.total_memory - torch.cuda.memory_allocated(device_idx)) / (1024**3)
 
         # Determine architecture from copute capability
         major, minor = props.major, props.minor
@@ -132,9 +125,7 @@ def _detect_cuda() -> dict[str, Any] | None:
             "supports_fp16": supports_fp16,
         }
     except Exception as e:
-        logger.warning(
-            f"CUDA appears available but device probing failed: {e}"
-        )
+        logger.warning(f"CUDA appears available but device probing failed: {e}")
         return None
 
 
@@ -143,10 +134,7 @@ def _detect_mps() -> dict[str, Any] | None:
     try:
         import torch
 
-        if not (
-            hasattr(torch.backends, "mps")
-            and torch.backends.mps.is_available()
-        ):
+        if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()):
             return None
 
         # Apple Silicon uses unified memory — estimate available
@@ -158,11 +146,7 @@ def _detect_mps() -> dict[str, Any] | None:
             text=True,
             timeout=5,
         )
-        total_ram_gb = (
-            int(result.stdout.strip()) / (1024**3)
-            if result.returncode == 0
-            else 8.0
-        )
+        total_ram_gb = int(result.stdout.strip()) / (1024**3) if result.returncode == 0 else 8.0
         # Rough heuristic: ~75% of unified memory is usable for GPU tasks
         usable_gb = total_ram_gb * 0.75
 
@@ -223,10 +207,7 @@ def _match_profile(
 ) -> dict[str, Any] | None:
     """Try to match the detected GPU against a known profile."""
     normalized = _normalize_gpu_name(gpu_info["device_name"])
-    logger.debug(
-        f"Matching GPU '{gpu_info['device_name']}' -> "
-        f"normalized '{normalized}'"
-    )
+    logger.debug(f"Matching GPU '{gpu_info['device_name']}' -> normalized '{normalized}'")
 
     for profile_name, profile_data in profiles.items():
         if normalized.lower() == profile_name.lower().replace(" ", "_"):
@@ -242,9 +223,7 @@ def _match_fallback_tier(vram_gb: float, tiers: list[dict]) -> dict[str, Any]:
     """Match against VRAM-based fallback tiers."""
     for tier in sorted(tiers, key=lambda t: t["vram_up_to_gb"]):
         if vram_gb <= tier["vram_up_to_gb"]:
-            logger.info(
-                f"Using fallback VRAM tier: <= {tier['vram_up_to_gb']} GB"
-            )
+            logger.info(f"Using fallback VRAM tier: <= {tier['vram_up_to_gb']} GB")
             result: dict[str, Any] = tier.get("recommended", {}).copy()
             result["matched_profile"] = f"fallback_{tier['vram_up_to_gb']}gb"
             return result
@@ -302,9 +281,7 @@ def detect_hardware(cfg: Any = None) -> HardwareProfile:
             recommended = _match_profile(gpu_info, profiles) or {}
 
         if not recommended and gpu_info["vram_gb"] > 0:
-            recommended = _match_fallback_tier(
-                gpu_info["vram_gb"], fallback_tiers
-            )
+            recommended = _match_fallback_tier(gpu_info["vram_gb"], fallback_tiers)
 
     # CPU fallback
     if gpu_info["device"] == "cpu":
@@ -321,8 +298,7 @@ def detect_hardware(cfg: Any = None) -> HardwareProfile:
     precision = recommended.get("precision", "32")
     if "bf16" in precision and not gpu_info.get("supports_bf16", False):
         logger.warning(
-            f"bf16 requested but not supported by {gpu_info['device_name']}. "
-            "Falling back to fp16."
+            f"bf16 requested but not supported by {gpu_info['device_name']}. Falling back to fp16."
         )
         precision = precision.replace("bf16", "16")
         recommended["precision"] = precision

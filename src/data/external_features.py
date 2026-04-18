@@ -60,9 +60,7 @@ def compute_all_external_features(
 
         bio_features = compute_biophysical_features(sequences, cfg)
         parts.append(bio_features)
-        logger.info(
-            f"Biophysical features: {bio_features.shape[1]} dimensions"
-        )
+        logger.info(f"Biophysical features: {bio_features.shape[1]} dimensions")
 
     # 2. Signal peptide predictions
     sp_cfg = features_cfg.get("signal_peptide", {})
@@ -71,9 +69,7 @@ def compute_all_external_features(
 
         sp_features = predict_signal_peptides(sequences, cfg)
         parts.append(sp_features)
-        logger.info(
-            f"Signal peptide features: {sp_features.shape[1]} dimensions"
-        )
+        logger.info(f"Signal peptide features: {sp_features.shape[1]} dimensions")
 
     # 3. Transmembrane predictions
     tm_cfg = features_cfg.get("transmembrane", {})
@@ -82,9 +78,7 @@ def compute_all_external_features(
 
         tm_features = predict_transmembrane(sequences, cfg)
         parts.append(tm_features)
-        logger.info(
-            f"Transmembrane features: {tm_features.shape[1]} dimensions"
-        )
+        logger.info(f"Transmembrane features: {tm_features.shape[1]} dimensions")
 
     # Concatenate all parts
     if not parts:
@@ -93,8 +87,7 @@ def compute_all_external_features(
 
     combined = np.concatenate(parts, axis=1)
     logger.info(
-        f"Total external features: {combined.shape[1]} dimensions "
-        f"for {combined.shape[0]} sequences"
+        f"Total external features: {combined.shape[1]} dimensions for {combined.shape[0]} sequences"
     )
 
     return combined

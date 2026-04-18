@@ -98,36 +98,20 @@ class ProteinLocalizationModule(pl.LightningModule):
             ext_dim += len(feat_cfg.biophysical.get("properties", []))
         input_dim = emb_dim + ext_dim
 
-        self.classifier = ClassifierHead.from_config(
-            cfg, input_dim, self.num_classes
-        )
+        self.classifier = ClassifierHead.from_config(cfg, input_dim, self.num_classes)
 
         # Build loss
-        self.criterion = CombinedLoss.from_config(
-            cfg, label_list, class_frequencies
-        )
+        self.criterion = CombinedLoss.from_config(cfg, label_list, class_frequencies)
 
         # Metrics
-        self.train_f1 = MultilabelF1Score(
-            num_labels=self.num_classes, average="macro"
-        )
-        self.val_f1 = MultilabelF1Score(
-            num_labels=self.num_classes, average="macro"
-        )
-        self.val_precision = MultilabelPrecision(
-            num_labels=self.num_classes, average="macro"
-        )
-        self.val_recall = MultilabelRecall(
-            num_labels=self.num_classes, average="macro"
-        )
-        self.test_f1 = MultilabelF1Score(
-            num_labels=self.num_classes, average="macro"
-        )
+        self.train_f1 = MultilabelF1Score(num_labels=self.num_classes, average="macro")
+        self.val_f1 = MultilabelF1Score(num_labels=self.num_classes, average="macro")
+        self.val_precision = MultilabelPrecision(num_labels=self.num_classes, average="macro")
+        self.val_recall = MultilabelRecall(num_labels=self.num_classes, average="macro")
+        self.test_f1 = MultilabelF1Score(num_labels=self.num_classes, average="macro")
 
         # Per-class F1 for detailed logging
-        self.val_f1_per_class = MultilabelF1Score(
-            num_labels=self.num_classes, average="none"
-        )
+        self.val_f1_per_class = MultilabelF1Score(num_labels=self.num_classes, average="none")
 
     def forward(
         self,
@@ -147,9 +131,7 @@ class ProteinLocalizationModule(pl.LightningModule):
             Logits tensor of shape (B, num_classes).
         """
         # ESM-2 forward
-        outputs = self.backbone(
-            input_ids=input_ids, attention_mask=attention_mask
-        )
+        outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
 
         # Pool to sequence-level representation
         embeddings = extract_sequence_representation(
@@ -188,9 +170,7 @@ class ProteinLocalizationModule(pl.LightningModule):
             "targets": targets,
         }
 
-    def training_step(
-        self, batch: dict[str, torch.Tensor], batch_idx: int
-    ) -> torch.Tensor:
+    def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         result = self._shared_step(batch, "train")
 
         self.log(
@@ -225,9 +205,7 @@ class ProteinLocalizationModule(pl.LightningModule):
 
         return result["loss"]
 
-    def validation_step(
-        self, batch: dict[str, torch.Tensor], batch_idx: int
-    ) -> None:
+    def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         result = self._shared_step(batch, "val")
 
         self.log(
@@ -251,9 +229,7 @@ class ProteinLocalizationModule(pl.LightningModule):
             prog_bar=True,
             sync_dist=True,
         )
-        self.log(
-            "val/precision", self.val_precision, on_epoch=True, sync_dist=True
-        )
+        self.log("val/precision", self.val_precision, on_epoch=True, sync_dist=True)
         self.log("val/recall", self.val_recall, on_epoch=True, sync_dist=True)
 
     def on_validation_epoch_end(self) -> None:
@@ -263,9 +239,7 @@ class ProteinLocalizationModule(pl.LightningModule):
             self.log(f"val/f1_{label}", per_class[i], sync_dist=True)
         self.val_f1_per_class.reset()
 
-    def test_step(
-        self, batch: dict[str, torch.Tensor], batch_idx: int
-    ) -> None:
+    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         result = self._shared_step(batch, "test")
         self.log("test/loss", result["loss"], on_epoch=True, sync_dist=True)
         self.test_f1(result["preds"], result["targets"].int())
@@ -278,9 +252,7 @@ class ProteinLocalizationModule(pl.LightningModule):
         opt_cfg = training_cfg.optimizer
 
         # Separate parameters into backbone (LoRA) and head groups
-        backbone_params = [
-            p for n, p in self.backbone.named_parameters() if p.requires_grad
-        ]
+        backbone_params = [p for n, p in self.backbone.named_parameters() if p.requires_grad]
         head_params = list(self.classifier.parameters())
 
         param_groups = [

@@ -24,9 +24,7 @@ def sample_df() -> pd.DataFrame:
         {
             "accession": [f"P{i:05d}" for i in range(n)],
             "sequence": ["M" + "A" * rng.randint(50, 200) for _ in range(n)],
-            "locations": [
-                [classes[rng.randint(0, len(classes))]] for _ in range(n)
-            ],
+            "locations": [[classes[rng.randint(0, len(classes))]] for _ in range(n)],
             "locations_str": None,  # Will be set below
         }
     )
@@ -34,9 +32,7 @@ def sample_df() -> pd.DataFrame:
 
 @pytest.fixture()
 def sample_df_with_str(sample_df: pd.DataFrame) -> pd.DataFrame:
-    sample_df["locations_str"] = sample_df["locations"].apply(
-        lambda x: "|".join(x)
-    )
+    sample_df["locations_str"] = sample_df["locations"].apply(lambda x: "|".join(x))
     return sample_df
 
 
@@ -50,9 +46,7 @@ class TestSplitByClusters:
 
     def test_no_accession_overlap(self, sample_df: pd.DataFrame) -> None:
         # Create simple cluster assignments: every 5 proteins share a cluster
-        cluster_map = {
-            row["accession"]: i // 5 for i, row in sample_df.iterrows()
-        }
+        cluster_map = {row["accession"]: i // 5 for i, row in sample_df.iterrows()}
         train, val, test = _split_by_clusters(
             sample_df, cluster_map, test_size=0.2, val_size=0.2, seed=42
         )
@@ -66,9 +60,7 @@ class TestSplitByClusters:
         assert len(val_acc & test_acc) == 0, "Val/test overlap"
 
     def test_all_data_accounted_for(self, sample_df: pd.DataFrame) -> None:
-        cluster_map = {
-            row["accession"]: i // 5 for i, row in sample_df.iterrows()
-        }
+        cluster_map = {row["accession"]: i // 5 for i, row in sample_df.iterrows()}
         train, val, test = _split_by_clusters(
             sample_df, cluster_map, test_size=0.2, val_size=0.2, seed=42
         )
@@ -77,9 +69,7 @@ class TestSplitByClusters:
         assert total == len(sample_df)
 
     def test_no_cluster_spans_splits(self, sample_df: pd.DataFrame) -> None:
-        cluster_map = {
-            row["accession"]: i // 5 for i, row in sample_df.iterrows()
-        }
+        cluster_map = {row["accession"]: i // 5 for i, row in sample_df.iterrows()}
         train, val, test = _split_by_clusters(
             sample_df, cluster_map, test_size=0.2, val_size=0.2, seed=42
         )
@@ -90,9 +80,7 @@ class TestSplitByClusters:
             ("val", val),
             ("test", test),
         ]:
-            split_clusters = {
-                cluster_map[acc] for acc in split_df["accession"]
-            }
+            split_clusters = {cluster_map[acc] for acc in split_df["accession"]}
             for other_name, other_df in [
                 ("train", train),
                 ("val", val),
@@ -100,13 +88,9 @@ class TestSplitByClusters:
             ]:
                 if split_name == other_name:
                     continue
-                other_clusters = {
-                    cluster_map[acc] for acc in other_df["accession"]
-                }
+                other_clusters = {cluster_map[acc] for acc in other_df["accession"]}
                 shared = split_clusters & other_clusters
-                assert len(shared) == 0, (
-                    f"Cluster(s) {shared} span {split_name} and {other_name}"
-                )
+                assert len(shared) == 0, f"Cluster(s) {shared} span {split_name} and {other_name}"
 
 
 # ---------------------------------------------------------------------------
@@ -118,9 +102,7 @@ class TestSplitRandomStratified:
     """Tests for random stratified splitting."""
 
     def test_no_accession_overlap(self, sample_df: pd.DataFrame) -> None:
-        train, val, test = _split_random_stratified(
-            sample_df, test_size=0.2, val_size=0.2, seed=42
-        )
+        train, val, test = _split_random_stratified(sample_df, test_size=0.2, val_size=0.2, seed=42)
 
         train_acc = set(train["accession"])
         val_acc = set(val["accession"])
@@ -131,9 +113,7 @@ class TestSplitRandomStratified:
         assert len(val_acc & test_acc) == 0
 
     def test_approximate_proportions(self, sample_df: pd.DataFrame) -> None:
-        train, val, test = _split_random_stratified(
-            sample_df, test_size=0.2, val_size=0.2, seed=42
-        )
+        train, val, test = _split_random_stratified(sample_df, test_size=0.2, val_size=0.2, seed=42)
 
         total = len(sample_df)
         assert abs(len(test) / total - 0.2) < 0.1

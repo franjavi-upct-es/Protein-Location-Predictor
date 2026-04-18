@@ -25,17 +25,13 @@ def _bitsandbytes_available() -> bool:
 class TestBuildBnbConfigValidation:
     """Tests that don't require a GPU or bitsandbytes."""
 
-    def test_raises_without_cuda(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_raises_without_cuda(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """If CUDA is not available, _build_bnb_config must raise loudly."""
         monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
         with pytest.raises(RuntimeError, match="CUDA-capable GPU"):
             _build_bnb_config({"method": "nf4"})
 
-    def test_unknown_compute_dtype_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unknown_compute_dtype_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Pretending CUDA + bnb are present, an unknown dtype must raise."""
         monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
         if not _bitsandbytes_available():
@@ -43,9 +39,7 @@ class TestBuildBnbConfigValidation:
         with pytest.raises(ValueError, match="Unknown compute_dtype"):
             _build_bnb_config({"method": "nf4", "compute_dtype": "float128"})
 
-    def test_unknown_method_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unknown_method_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
         if not _bitsandbytes_available():
             pytest.skip("bitsandbytes not installed")
@@ -138,9 +132,7 @@ class TestQLoRABackboneSmoke:
 
     def test_loads_and_runs_forward_pass(self) -> None:
         cfg = self._make_cfg()
-        model = build_esm_lora_backbone(
-            cfg, enable_gradient_checkpointing=True
-        )
+        model = build_esm_lora_backbone(cfg, enable_gradient_checkpointing=True)
         model = model.to("cuda")
         model.eval()
 
@@ -167,9 +159,7 @@ class TestQLoRABackboneSmoke:
 
     def test_only_lora_params_are_trainable(self) -> None:
         cfg = self._make_cfg()
-        model = build_esm_lora_backbone(
-            cfg, enable_gradient_checkpointing=True
-        )
+        model = build_esm_lora_backbone(cfg, enable_gradient_checkpointing=True)
         trainable, total = model.get_nb_trainable_parameters()
         assert trainable > 0
         assert trainable < total

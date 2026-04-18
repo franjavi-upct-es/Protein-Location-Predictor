@@ -24,6 +24,9 @@ from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Allowlist DotDict for PyTorch 2.6+ weights_only=True checkpoint loading.
+torch.serialization.add_safe_globals([DotDict])
+
 
 class Predictor:
     """
@@ -60,6 +63,9 @@ class Predictor:
         self.top_k = top_k
         self.max_length = max_length
 
+        # Per-class thresholds (None means use the global threshold)
+        self.per_class_thresholds: dict[str, float] | None = None
+
         self.model.eval()
         self.model.to(device)
 
@@ -89,10 +95,7 @@ class Predictor:
         if device is None:
             if torch.cuda.is_available():
                 device = "cuda"
-            elif (
-                hasattr(torch.backends, "mps")
-                and torch.backends.mps.is_available()
-            ):
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
                 device = "mps"
             else:
                 device = "cpu"
@@ -119,7 +122,13 @@ class Predictor:
 
         label_list = model.label_list
 
-        return cls(
+        # Try to load per-class thresholds from the same directory
+        from src.evaluation.threshold_tuning import load_thresholds
+
+        thresholds_path = Path(checkpoint_path).parent / "thresholds.json"
+        per_class_thresholds = load_thresholds(thresholds_path)
+
+        predictor = cls(
             model=model,
             tokenizer=tokenizer,
             label_list=label_list,
@@ -128,6 +137,10 @@ class Predictor:
             top_k=top_k,
             max_length=max_length,
         )
+        if per_class_thresholds is not None:
+            predictor.per_class_thresholds = per_class_thresholds
+            logger.info(f"Loaded {len(per_class_thresholds)} per-class thresholds")
+        return predictor
 
     @torch.no_grad()
     def predict(
@@ -171,7 +184,12 @@ class Predictor:
         # Build results
         results: list[dict[str, str | float]] = []
         for label, prob in zip(self.label_list, probabilities, strict=True):
-            if prob >= threshold:
+            class_threshold = (
+                self.per_class_thresholds.get(label, threshold)
+                if self.per_class_thresholds is not None
+                else threshold
+            )
+            if prob >= class_threshold:
                 results.append(
                     {
                         "location": label,

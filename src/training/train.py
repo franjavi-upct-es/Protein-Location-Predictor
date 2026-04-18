@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import cast
 
 import pandas as pd
 import pytorch_lightning as pl
@@ -42,6 +41,11 @@ from src.utils.logging import get_logger, setup_logging
 from src.utils.reproducibility import seed_everything
 
 logger = get_logger(__name__)
+
+# Allowlist DotDict so Lightning can load checkpoints under PyTorch 2.6+
+# weights_only=True default — hyperparameters saved via save_hyperparameters()
+# embed the cfg DotDict, which is otherwise rejected by the safe unpickler.
+torch.serialization.add_safe_globals([DotDict])
 
 
 # ---------------------------------------------------------------------------
@@ -114,9 +118,7 @@ def _configure_torch_runtime(hw_profile: object) -> None:
         torch, "set_float32_matmul_precision"
     ):
         torch.set_float32_matmul_precision("high")
-        logger.info(
-            "Set float32 matmul precision to high for CUDA Tensor Cores."
-        )
+        logger.info("Set float32 matmul precision to high for CUDA Tensor Cores.")
 
 
 def _build_callbacks(cfg: DotDict) -> list[pl.Callback]:
@@ -207,9 +209,7 @@ def _build_trainer(cfg: DotDict, hw_profile: object) -> pl.Trainer:
         )
 
     # Resolve precision from hardware profile
-    precision = getattr(
-        hw_profile, "precision", training_cfg.get("precision", "32")
-    )
+    precision = getattr(hw_profile, "precision", training_cfg.get("precision", "32"))
 
     trainer = pl.Trainer(
         max_epochs=training_cfg.get("max_epochs", 30),
@@ -226,6 +226,51 @@ def _build_trainer(cfg: DotDict, hw_profile: object) -> pl.Trainer:
     )
 
     return trainer
+
+
+def _tune_and_save_thresholds(
+    cfg: DotDict,
+    model: ProteinLocalizationModule,
+    dm: ProteinDataModule,
+) -> None:
+    """Run a threshold sweep on the val set and persist the result."""
+    import numpy as np
+    from torch import sigmoid
+
+    from src.evaluation.threshold_tuning import (
+        save_thresholds,
+        tune_thresholds,
+    )
+
+    logger.info("Tuning per-class thresholds on the validation set...")
+    dm.setup("fit")
+    val_loader = dm.val_dataloader()
+
+    model.eval()
+    all_probs = []
+    all_targets = []
+    device = next(model.parameters()).device
+    with torch.no_grad():
+        for batch in val_loader:
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            ext = batch.get("external_features")
+            if ext is not None:
+                ext = ext.to(device)
+            logits = model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                external_features=ext,
+            )
+            all_probs.append(sigmoid(logits).cpu().numpy())
+            all_targets.append(batch["labels"].numpy())
+
+    probabilities = np.concatenate(all_probs, axis=0)
+    targets = np.concatenate(all_targets, axis=0).astype(int)
+
+    thresholds = tune_thresholds(probabilities, targets, model.label_list)
+    out_path = resolve_path(cfg, "paths.models_dir") / "checkpoints" / "thresholds.json"
+    save_thresholds(thresholds, out_path)
 
 
 # ---------------------------------------------------------------------------
@@ -263,10 +308,7 @@ def train(cfg: DotDict) -> None:
     #   - the user explicitly opted in via training.auto_batch_size,
     #   - we are on CUDA (probing requires a real GPU),
     #   - and the resulting size will replace the configured one.
-    if (
-        training_cfg.get("auto_batch_size", False)
-        and getattr(hw, "device", None) == "cuda"
-    ):
+    if training_cfg.get("auto_batch_size", False) and getattr(hw, "device", None) == "cuda":
         from src.training.auto_batch_size import find_max_batch_size
 
         probed = find_max_batch_size(
@@ -314,23 +356,19 @@ def train(cfg: DotDict) -> None:
     trainer.fit(model, datamodule=dm)
 
     # 8. Test with best checkpoint
-    checkpoint_callback = cast(
-        ModelCheckpoint | None,
-        getattr(trainer, "checkpoint_callback", None),
-    )
-    best_path = (
-        checkpoint_callback.best_model_path
-        if checkpoint_callback is not None
-        else ""
-    )
+    best_path = trainer.checkpoint_callback.best_model_path
     if best_path:
         logger.info(f"Testing with best checkpoint: {best_path}")
         trainer.test(model, datamodule=dm, ckpt_path=best_path)
     else:
-        logger.warning(
-            "No best checkpoint found — testing with last model state"
-        )
+        logger.warning("No best checkpoint found — testing with last model state")
         trainer.test(model, datamodule=dm)
+
+    # 9. Per-class threshold tuning on the val set
+    try:
+        _tune_and_save_thresholds(cfg, model, dm)
+    except Exception as e:
+        logger.warning(f"Threshold tuning failed: {e}")
 
     logger.info("Training complete.")
 
@@ -342,9 +380,7 @@ def train(cfg: DotDict) -> None:
 
 def main() -> None:
     """Entry point for the training CLI command."""
-    parser = argparse.ArgumentParser(
-        description="Train the protein localization model."
-    )
+    parser = argparse.ArgumentParser(description="Train the protein localization model.")
     parser.add_argument(
         "--overrides",
         nargs="*",
@@ -353,7 +389,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    cfg = load_config(mode="training", overrides=args.overrides)
+    cfg = load_config(mode="training", overrides=args.overrides, validate=True)
     setup_logging(level=cfg.project.log_level)
 
     train(cfg)

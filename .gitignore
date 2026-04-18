@@ -48,11 +48,10 @@ reports/coverage/
 data/raw/
 data/processed/
 data/splits/
-models/*.pt
-models/*.ckpt
-models/*.pkl
-models/*.joblib
-!models/.gitkeep
+models
+!src/models
+reports/fingerprints
+benchmarks/deeploc/test.fasta
 
 # ===========================================================================
 # Experiment tracking
