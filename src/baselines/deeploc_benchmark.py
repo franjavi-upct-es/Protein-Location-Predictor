@@ -7,10 +7,10 @@ project's numbers can be compared with a published external baseline.
 
 DeepLoc 2.0 is published at https://services.healthtech.dtu.dk/services/DeepLoc-2.0/
 The test set is distributed as a FASTA file plus a TSV with the
-ground-truth labels. Because the exact distribution URL and licence can
+ground-truth labels. Because the exact distribution URL and license can
 change without notice, this script does NOT auto-download the dataset.
 Instead it expects the user to place the files manually under
-``benchmark/deeploc/`` and tells them what to put there.
+``benchmarks/deeploc/`` and tells them what to put there.
 
 Layout expected by this script:
 
@@ -44,6 +44,7 @@ from src.utils.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
+
 # Map from DeepLoc 2.0 location names to the project's internal class
 # names. Keys are case-insensitive at lookup time. Add new entries here
 # if you change the project taxonomy.
@@ -61,6 +62,7 @@ DEFAULT_LABEL_MAP: dict[str, str] = {
     "vacuole": "Vacuole",
     "peroxisome": "Peroxisome",
 }
+
 
 # ---------------------------------------------------------------------------
 # Loading
@@ -149,7 +151,7 @@ def _load_deeploc_test_set(benchmarks_dir: Path, label_map: dict[str, str]) -> p
 
     if skipped:
         logger.warning(
-            f"DeepLoc: {skipped} accessions had labels but no sequences in the FASTA file — skipped"
+            f"DeepLoc: {skipped} accessions had labels but no sequence in the FASTA file — skipped"
         )
     if not rows:
         raise RuntimeError(
@@ -158,7 +160,7 @@ def _load_deeploc_test_set(benchmarks_dir: Path, label_map: dict[str, str]) -> p
         )
 
     df = pd.DataFrame(rows)
-    logger.info(f"DeepLoc test set: {len(df)} rows after mapping")
+    logger.info(f"DeepLoc test set: {len(df)} rows after label mapping")
     return df
 
 
@@ -170,10 +172,7 @@ def _load_deeploc_test_set(benchmarks_dir: Path, label_map: dict[str, str]) -> p
 def _predict_with_checkpoint(
     df: pd.DataFrame, checkpoint_path: Path, cfg: DotDict
 ) -> tuple[np.ndarray, np.ndarray, list[str]]:
-    """Run the trainer predictor on every row.
-
-    Return predictions, targets, and the ordered label list.
-    """
+    """Run the trained predictor on every row and return preds, targets, labels."""
     from src.serving.predictor import Predictor
 
     predictor = Predictor.from_checkpoint(checkpoint_path, cfg)
@@ -195,7 +194,7 @@ def _predict_with_checkpoint(
                 targets[i, label_to_idx[loc]] = 1
 
     # Predict
-    logger.info(f"Prediction on {n} sequences...")
+    logger.info(f"Predicting on {n} sequences...")
     batch_results = predictor.predict_batch(sequences)
     for i, results in enumerate(batch_results):
         for r in results:
@@ -271,7 +270,7 @@ def main() -> None:
         help="Path to a .ckpt file. Defaults to the latest checkpoint.",
     )
     parser.add_argument(
-        "--benchmark-dir",
+        "--benchmarks-dir",
         type=str,
         default=None,
         help="Directory containing test.fasta and test_labels.tsv.",

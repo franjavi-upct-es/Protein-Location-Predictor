@@ -51,7 +51,8 @@ data/splits/
 models
 !src/models
 reports/fingerprints
-benchmarks/deeploc/test.fasta
+benchmarks/deeploc/
+!benchmarks/deeploc/README.md
 
 # ===========================================================================
 # Experiment tracking
