@@ -1,6 +1,6 @@
 # tests/unit/test_components.py
 """
-Tests for the small Sprint 6 evaluation components:
+Tests for the small evaluation components:
 threshold tuning, per-organism breakdown, and the comparison report.
 """
 
@@ -183,3 +183,41 @@ class TestComparisonReport:
         out = build_report(cfg)
         text = out.read_text()
         assert "0.420" in text
+
+    def test_describes_deeploc_demo_reference_honestly(self, tmp_path: Path) -> None:
+        from src.evaluation.comparison_report import build_report
+        from src.utils.config import DotDict
+
+        reports_dir = tmp_path / "reports"
+        benchmarks_dir = reports_dir / "benchmarks"
+        benchmarks_dir.mkdir(parents=True)
+
+        (benchmarks_dir / "deeploc.json").write_text(
+            json.dumps(
+                {
+                    "reference_type": "deeploc_predictions",
+                    "n_samples": 2,
+                    "n_source_rows": 3,
+                    "n_skipped_unmapped_labels": 1,
+                    "overall": {
+                        "f1_macro": 0.5,
+                        "f1_micro": 0.5,
+                        "precision_macro": 0.5,
+                        "recall_macro": 0.5,
+                        "exact_match_ratio": 0.5,
+                        "hamming_loss": 0.1,
+                    },
+                }
+            )
+        )
+
+        cfg = DotDict.from_dict(
+            {
+                "paths": {"reports_dir": "reports"},
+                "project_root": str(tmp_path),
+            }
+        )
+        out = build_report(cfg)
+        text = out.read_text()
+        assert "packaged DeepLoc 2.0 demo set" in text
+        assert "not exist in this project's taxonomy" in text

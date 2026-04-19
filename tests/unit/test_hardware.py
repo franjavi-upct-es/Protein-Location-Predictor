@@ -55,9 +55,7 @@ class TestNormalizeGpuName:
 class TestDetectCuda:
     """Tests for CUDA probing."""
 
-    def test_uses_total_memory_property(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_uses_total_memory_property(self, monkeypatch: pytest.MonkeyPatch) -> None:
         props = SimpleNamespace(
             name="NVIDIA GeForce RTX 5060 Laptop GPU",
             total_memory=8 * 1024**3,
@@ -183,8 +181,7 @@ class TestEstimateVram:
             gradient_checkpointing=True,
         )
         assert result["total"] < 8.0, (
-            f"Estimated VRAM {result['total']:.2f} GB exceeds 8 GB budget. "
-            f"Breakdown: {result}"
+            f"Estimated VRAM {result['total']:.2f} GB exceeds 8 GB budget. Breakdown: {result}"
         )
 
 

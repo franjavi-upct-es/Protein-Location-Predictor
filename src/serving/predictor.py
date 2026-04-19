@@ -15,7 +15,7 @@ Usage::
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import torch
 
@@ -23,9 +23,6 @@ from src.utils.config import DotDict
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
-
-# Allowlist DotDict for PyTorch 2.6+ weights_only=True checkpoint loading.
-torch.serialization.add_safe_globals([DotDict])
 
 
 class Predictor:
@@ -50,6 +47,7 @@ class Predictor:
         model: Any,
         tokenizer: Any,
         label_list: list[str],
+        cfg: DotDict | None = None,
         device: str = "cpu",
         threshold: float = 0.5,
         top_k: int = 3,
@@ -58,6 +56,7 @@ class Predictor:
         self.model = model
         self.tokenizer = tokenizer
         self.label_list = label_list
+        self.cfg = cfg
         self.device = device
         self.threshold = threshold
         self.top_k = top_k
@@ -108,6 +107,8 @@ class Predictor:
             str(checkpoint_path),
             cfg=cfg,
             map_location=device,
+            strict=False,
+            weights_only=False,
         )
 
         # Load tokenizer
@@ -132,6 +133,7 @@ class Predictor:
             model=model,
             tokenizer=tokenizer,
             label_list=label_list,
+            cfg=cfg,
             device=device,
             threshold=threshold,
             top_k=top_k,
@@ -162,27 +164,38 @@ class Predictor:
             sorted by confidence descending. Only locations above
             threshold are included, up to top_k.
         """
-        threshold = threshold or self.threshold
-        top_k = top_k or self.top_k
+        batch_predictions = self.predict_batch([sequence], threshold, top_k)
+        return cast(list[dict[str, Any]], batch_predictions[0])
 
-        # Tokenize
-        enconding = self.tokenizer(
-            sequence,
-            return_tensors="pt",
-            padding=True,
-            trunctaion=True,
-            max_length=self.max_length,
-        )
+    def _compute_external_features(
+        self,
+        sequences: list[str],
+    ) -> torch.Tensor | None:
+        """Compute optional external features for a batch of sequences."""
+        if self.cfg is None:
+            return None
 
-        input_ids = enconding["input_ids"].to(self.device)
-        attention_mask = enconding["attention_mask"].to(self.device)
+        from src.data.external_features import get_external_feature_dim
 
-        # Forward pass
-        logits = self.model(input_ids=input_ids, attention_mask=attention_mask)
-        probabilities = torch.sigmoid(logits).cpu().numpy()[0]
+        if get_external_feature_dim(self.cfg) == 0:
+            return None
 
-        # Build results
-        results: list[dict[str, str | float]] = []
+        from src.data.external_features import compute_all_external_features
+
+        features = compute_all_external_features(sequences, self.cfg)
+        if features.shape[1] == 0:
+            return None
+
+        return torch.tensor(features, dtype=torch.float32, device=self.device)
+
+    def _format_predictions(
+        self,
+        probabilities: Any,
+        threshold: float,
+        top_k: int,
+    ) -> list[dict[str, Any]]:
+        """Convert class probabilities into the public prediction format."""
+        results: list[dict[str, Any]] = []
         for label, prob in zip(self.label_list, probabilities, strict=True):
             class_threshold = (
                 self.per_class_thresholds.get(label, threshold)
@@ -197,11 +210,9 @@ class Predictor:
                     }
                 )
 
-        # Sort by confidence and limit to top_k
         results.sort(key=lambda x: x["confidence"], reverse=True)
         results = results[:top_k]
 
-        # If nothing passed the threshold, return the top prediction anyway
         if not results:
             best_idx = int(probabilities.argmax())
             results = [
@@ -231,9 +242,40 @@ class Predictor:
         Returns:
             List of prediction lists (one per sequence).
         """
-        # For simplicity and memory safety, process one at a time
-        # (batch tokenization with dynamic padding could be added later)
-        return [self.predict(seq, threshold, top_k) for seq in sequences]
+        threshold = threshold or self.threshold
+        top_k = top_k or self.top_k
+
+        if not sequences:
+            return []
+
+        external_features = self._compute_external_features(sequences)
+        outputs: list[list[dict[str, Any]]] = []
+
+        # Keep tokenization one sequence at a time for memory safety, but compute
+        # external features once across the full input list so feature scaling
+        # matches the same batch context.
+        for i, sequence in enumerate(sequences):
+            encoding = self.tokenizer(
+                sequence,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=self.max_length,
+            )
+
+            input_ids = encoding["input_ids"].to(self.device)
+            attention_mask = encoding["attention_mask"].to(self.device)
+            ext = external_features[i : i + 1] if external_features is not None else None
+
+            logits = self.model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                external_features=ext,
+            )
+            probabilities = torch.sigmoid(logits).cpu().numpy()[0]
+            outputs.append(self._format_predictions(probabilities, threshold, top_k))
+
+        return outputs
 
     def warmup(self) -> None:
         """Run a dummy prediction to warm ip the model (precompile, cache)."""

@@ -37,15 +37,11 @@ class TestComputeSingleSequence:
         assert set(result.keys()) == set(props)
 
     def test_molecular_weight_positive(self) -> None:
-        result = compute_single_sequence(
-            "MSKGEELFTGVVPILVELDGDVNGHK", ["molecular_weight"]
-        )
+        result = compute_single_sequence("MSKGEELFTGVVPILVELDGDVNGHK", ["molecular_weight"])
         assert result["molecular_weight"] > 0
 
     def test_isoelectric_point_range(self) -> None:
-        result = compute_single_sequence(
-            "MSKGEELFTGVVPILVELDGDVNGHK", ["isoelectric_point"]
-        )
+        result = compute_single_sequence("MSKGEELFTGVVPILVELDGDVNGHK", ["isoelectric_point"])
         assert 0 < result["isoelectric_point"] < 14
 
     def test_short_sequence_returns_nan(self) -> None:
@@ -53,9 +49,7 @@ class TestComputeSingleSequence:
         assert np.isnan(result["molecular_weight"])
 
     def test_unknown_property_returns_nan(self) -> None:
-        result = compute_single_sequence(
-            "MSKGEELFTGVVPILVELDGDVNGHK", ["nonexistent_prop"]
-        )
+        result = compute_single_sequence("MSKGEELFTGVVPILVELDGDVNGHK", ["nonexistent_prop"])
         assert np.isnan(result["nonexistent_prop"])
 
     def test_sequence_length_property(self) -> None:
@@ -69,16 +63,12 @@ class TestComputeBiophysicalFeatures:
 
     def test_output_shape(self) -> None:
         seqs = ["MSKGEELFTGVVPILVELDGDVNGHK", "MQIFVKTLTGKTITLEVEPSDTIENVK"]
-        result = compute_biophysical_features(
-            seqs, properties=["molecular_weight", "gravy"]
-        )
+        result = compute_biophysical_features(seqs, properties=["molecular_weight", "gravy"])
         assert result.shape == (2, 2)
 
     def test_output_dtype(self) -> None:
         seqs = ["MSKGEELFTGVVPILVELDGDVNGHK"]
-        result = compute_biophysical_features(
-            seqs, properties=["molecular_weight"]
-        )
+        result = compute_biophysical_features(seqs, properties=["molecular_weight"])
         assert result.dtype == np.float32
 
     def test_standardized_output(self) -> None:

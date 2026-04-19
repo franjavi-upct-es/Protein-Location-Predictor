@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -103,7 +104,7 @@ def _compute_embeddings(
     )
 
     tokenizer = AutoTokenizer.from_pretrained(backbone_name)
-    model = EsmModel.from_pretrained(backbone_name).to(device)
+    model = cast(Any, EsmModel).from_pretrained(backbone_name).to(device)
     model.eval()
 
     all_embeddings: list[np.ndarray] = []

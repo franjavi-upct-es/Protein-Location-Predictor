@@ -126,8 +126,7 @@ def _run_mmseqs2_clustering(
         reps = cluster_df["representative"].unique()
         rep_to_id = {rep: idx for idx, rep in enumerate(reps)}
         cluster_map = {
-            row["member"]: rep_to_id[row["representative"]]
-            for _, row in cluster_df.iterrows()
+            row["member"]: rep_to_id[row["representative"]] for _, row in cluster_df.iterrows()
         }
 
         n_clusters = len(reps)
@@ -177,9 +176,7 @@ def _split_by_clusters(
     # Drop any unmapped accessions (shouldn't happen, but defensive)
     unmapped = df["cluster_id"].isna().sum()
     if unmapped > 0:
-        logger.warning(
-            f"{unmapped} accessions not found in cluster map — dropping"
-        )
+        logger.warning(f"{unmapped} accessions not found in cluster map — dropping")
         df = df.dropna(subset=["cluster_id"])
     df["cluster_id"] = df["cluster_id"].astype(int)
 
@@ -196,15 +193,9 @@ def _split_by_clusters(
     val_clusters = set(clusters[n_test : n_test + n_val])
     train_clusters = set(clusters[n_test + n_val :])
 
-    train_df = df[df["cluster_id"].isin(list(train_clusters))].drop(
-        columns=["cluster_id"]
-    )
-    val_df = df[df["cluster_id"].isin(list(val_clusters))].drop(
-        columns=["cluster_id"]
-    )
-    test_df = df[df["cluster_id"].isin(list(test_clusters))].drop(
-        columns=["cluster_id"]
-    )
+    train_df = df[df["cluster_id"].isin(list(train_clusters))].drop(columns=["cluster_id"])
+    val_df = df[df["cluster_id"].isin(list(val_clusters))].drop(columns=["cluster_id"])
+    test_df = df[df["cluster_id"].isin(list(test_clusters))].drop(columns=["cluster_id"])
 
     logger.info(
         "Cluster-based split: "
@@ -239,9 +230,7 @@ def _split_random_stratified(
     )
 
     # Use first location as stratification key
-    stratify_col = df["locations"].apply(
-        lambda x: x[0] if isinstance(x, list) else x
-    )
+    stratify_col = df["locations"].apply(lambda x: x[0] if isinstance(x, list) else x)
 
     # First split: train+val vs test
     train_val_df: pd.DataFrame
@@ -255,9 +244,7 @@ def _split_random_stratified(
 
     # Second split: train vs val
     val_fraction = val_size / (1 - test_size)
-    stratify_tv = train_val_df["locations"].apply(
-        lambda x: x[0] if isinstance(x, list) else x
-    )
+    stratify_tv = train_val_df["locations"].apply(lambda x: x[0] if isinstance(x, list) else x)
     train_df: pd.DataFrame
     val_df: pd.DataFrame
     train_df, val_df = train_test_split(  # pyright: ignore[reportAssignmentType]
@@ -268,8 +255,7 @@ def _split_random_stratified(
     )
 
     logger.info(
-        f"Random stratified split: "
-        f"train={len(train_df)}, val={len(val_df)}, test={len(test_df)}"
+        f"Random stratified split: train={len(train_df)}, val={len(val_df)}, test={len(test_df)}"
     )
 
     return train_df, val_df, test_df  # pyright: ignore[reportReturnType]
@@ -377,9 +363,7 @@ def main() -> None:
     cfg = load_config()
     setup_logging(level=cfg.project.log_level)
 
-    proc_path = (
-        resolve_path(cfg, "paths.processed_dir") / "proteins_processed.csv"
-    )
+    proc_path = resolve_path(cfg, "paths.processed_dir") / "proteins_processed.csv"
     df = pd.read_csv(proc_path)
     # Reconstruct the locations list from pipe-separated string
     df["locations"] = df["locations_str"].apply(

@@ -68,9 +68,7 @@ class FocalLoss(nn.Module):
         else:
             self.alpha = None
 
-    def forward(
-        self, logits: torch.Tensor, targets: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """
         Compute focal loss.
 
@@ -82,9 +80,7 @@ class FocalLoss(nn.Module):
             Scalar loss value.
         """
         # Numerically stable sigmoid + BCE
-        bce = F.binary_cross_entropy_with_logits(
-            logits, targets, reduction="none"
-        )  # (B, C)
+        bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")  # (B, C)
 
         # Probability of the true class
         probs = torch.sigmoid(logits)
@@ -97,9 +93,7 @@ class FocalLoss(nn.Module):
 
         # Per-class weighting
         if self.alpha is not None:
-            loss = loss * self.alpha.unsqueeze(
-                0
-            )  # broadcast (1, C) over (B, C)
+            loss = loss * self.alpha.unsqueeze(0)  # broadcast (1, C) over (B, C)
 
         if self.reduction == "mean":
             return loss.mean()
@@ -225,9 +219,7 @@ class HierarchicalLoss(nn.Module):
 
         # False positive penalty: predicted positive but target is negative
         # Weight by distance from the nearest true positive class
-        false_pos = probs * (
-            1 - targets
-        )  # (B, C) — high where wrongly confident
+        false_pos = probs * (1 - targets)  # (B, C) — high where wrongly confident
 
         # For each false positive, compute its average
         # distance to all true classes
@@ -236,9 +228,7 @@ class HierarchicalLoss(nn.Module):
         # from each class to the true set
         true_count = targets.sum(dim=-1, keepdim=True).clamp(min=1)  # (B, 1)
         distance_matrix = cast(torch.Tensor, self.distance_matrix)
-        dist_to_true = (
-            torch.matmul(targets, distance_matrix) / true_count
-        )  # (B, C)
+        dist_to_true = torch.matmul(targets, distance_matrix) / true_count  # (B, C)
 
         # Penalty = false positive probability * distance to nearest true class
         penalty = (false_pos * dist_to_true).mean()
@@ -361,14 +351,9 @@ class CombinedLoss(nn.Module):
         # Focal loss
         gamma = loss_cfg.focal.get("gamma", 2.0)
         alpha = None
-        if (
-            class_frequencies is not None
-            and loss_cfg.focal.get("alpha") is None
-        ):
+        if class_frequencies is not None and loss_cfg.focal.get("alpha") is None:
             alpha = FocalLoss.compute_alpha_from_frequencies(class_frequencies)
-            logger.info(
-                f"Auto-computed focal alpha from class frequencies: {alpha}"
-            )
+            logger.info(f"Auto-computed focal alpha from class frequencies: {alpha}")
         focal = FocalLoss(gamma=gamma, alpha=alpha)
 
         # Hierarchical loss

@@ -2,26 +2,39 @@
 """
 DeepLoc 2.0 benchmark runner.
 
-Evaluates a trained checkpoint against the DeepLoc 2.0 test set so the
-project's numbers can be compared with a published external baseline.
+Evaluates a trained checkpoint against a DeepLoc 2.0 reference set.
 
 DeepLoc 2.0 is published at https://services.healthtech.dtu.dk/services/DeepLoc-2.0/
-The test set is distributed as a FASTA file plus a TSV with the
-ground-truth labels. Because the exact distribution URL and license can
-change without notice, this script does NOT auto-download the dataset.
-Instead it expects the user to place the files manually under
-``benchmarks/deeploc/`` and tells them what to put there.
+Two input layouts are supported:
 
-Layout expected by this script:
+1. A true benchmark layout with a FASTA file plus a TSV containing
+   ground-truth labels.
+2. The packaged DeepLoc 2.0 demo layout, where ``test.fasta`` is paired
+   with ``outputs/results_test.csv``. In that mode the script compares
+   this project's predictions against DeepLoc's own predictions instead
+   of ground truth, which is useful as a compatibility check but is not
+   a published benchmark.
+
+Because the exact distribution URL and license can change without
+notice, this script does NOT auto-download the dataset. Instead it
+expects the user to place the files manually under ``benchmarks/deeploc/``
+or point ``--benchmarks-dir`` at the unpacked DeepLoc package.
+
+Supported layouts:
 
     benchmarks/
         deeploc/
-            test.fasta              # protein sequences
-            test_labels.tsv         # accession <TAB> location[|location...]
+            test.fasta                    # protein sequences
+            test_labels.tsv               # accession <TAB> location[|location...]
 
-The location names in the TSV are mapped to the project's internal
-class names via a configurable label map (see ``DEFAULT_LABEL_MAP``
-below). Anything not in the map is dropped from the evaluation.
+    deeploc2_package/
+        test.fasta
+        outputs/
+            results_test.csv             # DeepLoc's own predictions
+
+DeepLoc location names are mapped to the project's internal class names
+via a configurable label map (see ``DEFAULT_LABEL_MAP`` below). Any
+labels with no overlap in this project's taxonomy are dropped.
 
 Usage::
 
@@ -64,104 +77,233 @@ DEFAULT_LABEL_MAP: dict[str, str] = {
 }
 
 
+def _location_tokens(raw_locations: str) -> list[str]:
+    """Split a raw DeepLoc label string into normalized tokens."""
+    return [token.strip() for token in raw_locations.split("|") if token.strip()]
+
+
 # ---------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------
 
 
-def _read_fasta(path: Path) -> dict[str, str]:
-    """Tiny FASTA parser, returns {accession: sequence}."""
-    sequences: dict[str, str] = {}
+def _record_id_aliases(record_id: str) -> list[str]:
+    """Return the canonical record id plus common aliases like UniProt accessions."""
+    aliases = [record_id]
+    parts = record_id.split("|")
+    if len(parts) >= 3 and parts[1]:
+        aliases.append(parts[1])
+    return aliases
+
+
+def _read_fasta(path: Path) -> dict[str, tuple[str, str]]:
+    """Tiny FASTA parser, returns {alias: (canonical_id, sequence)}."""
+    sequence_lookup: dict[str, tuple[str, str]] = {}
     current_id: str | None = None
     current_chunks: list[str] = []
+
+    def _store_record() -> None:
+        if current_id is None:
+            return
+        sequence = "".join(current_chunks)
+        for alias in _record_id_aliases(current_id):
+            sequence_lookup.setdefault(alias, (current_id, sequence))
+
     with open(path) as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
             if line.startswith(">"):
-                if current_id is not None:
-                    sequences[current_id] = "".join(current_chunks)
+                _store_record()
                 current_id = line[1:].split()[0]
                 current_chunks = []
             else:
                 current_chunks.append(line)
-    if current_id is not None:
-        sequences[current_id] = "".join(current_chunks)
-    return sequences
+    _store_record()
+    return sequence_lookup
 
 
-def _load_deeploc_test_set(benchmarks_dir: Path, label_map: dict[str, str]) -> pd.DataFrame:
-    """
-    Load the DeepLoc test set from disk and map labels to project classes.
+def _map_locations(raw_locations: str, label_map: dict[str, str]) -> list[str]:
+    """Map DeepLoc label names to this project's internal taxonomy."""
+    lower_map = {key.lower(): value for key, value in label_map.items()}
+    mapped: list[str] = []
+    for raw_loc in _location_tokens(raw_locations):
+        target = lower_map.get(raw_loc.lower())
+        if target is not None and target not in mapped:
+            mapped.append(target)
+    return mapped
 
-    Returns a DataFrame with columns:
-        accession, sequence, locations_str, raw_locations
-    """
-    fasta_path = benchmarks_dir / "test.fasta"
-    labels_path = benchmarks_dir / "test_labels.tsv"
 
-    if not fasta_path.exists() or not labels_path.exists():
-        raise FileNotFoundError(
-            "DeepLoc 2.0 test set not found. Place the files manually:\n"
-            f"  {fasta_path}\n"
-            f"  {labels_path}\n"
-            "See https://services.healthtech.dtu.dk/services/DeepLoc-2.0/ "
-            "for the dataset distribution."
+def _build_reference_frame(
+    rows: list[tuple[str, str]],
+    sequence_lookup: dict[str, tuple[str, str]],
+    label_map: dict[str, str],
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Build the evaluation frame from raw DeepLoc ids plus label strings."""
+    out_rows: list[dict[str, str]] = []
+    skipped_missing_sequence = 0
+    skipped_unmapped_labels = 0
+    unmapped_tokens: set[str] = set()
+
+    for protein_id, raw_locations in rows:
+        lookup = sequence_lookup.get(str(protein_id))
+        if lookup is None:
+            skipped_missing_sequence += 1
+            continue
+
+        canonical_id, sequence = lookup
+        mapped = _map_locations(str(raw_locations), label_map)
+        if not mapped:
+            skipped_unmapped_labels += 1
+            unmapped_tokens.update(_location_tokens(str(raw_locations)))
+            continue
+
+        out_rows.append(
+            {
+                "accession": canonical_id,
+                "sequence": sequence,
+                "locations_str": "|".join(mapped),
+                "raw_locations": str(raw_locations),
+            }
         )
 
-    sequences = _read_fasta(fasta_path)
+    stats = {
+        "n_source_rows": len(rows),
+        "n_skipped_missing_sequence": skipped_missing_sequence,
+        "n_skipped_unmapped_labels": skipped_unmapped_labels,
+        "unmapped_labels": sorted(unmapped_tokens),
+    }
+    return pd.DataFrame(out_rows), stats
+
+
+def _read_reference_rows_from_tsv(labels_path: Path) -> list[tuple[str, str]]:
+    """Read ground-truth DeepLoc labels from the benchmark TSV."""
     labels_df = pd.read_csv(labels_path, sep="\t", header=None)
     if labels_df.shape[1] < 2:
         raise ValueError(
             f"{labels_path} must have at least 2 tab-separated columns: "
             "accession and location[|location...]"
         )
-    labels_df.columns = ["accession"] + [f"col{i}" for i in range(1, labels_df.shape[1])]
-    # Use the second column as the labels column
-    labels_df["raw_locations"] = labels_df.iloc[:, 1].astype(str)
+    return [(str(row.iloc[0]), str(row.iloc[1])) for _, row in labels_df.iterrows()]
 
-    # Build the merged DataFrame
-    rows = []
-    skipped = 0
-    lower_map = {k.lower(): v for k, v in label_map.items()}
-    for _, row in labels_df.iterrows():
-        acc = str(row["accession"])
-        if acc not in sequences:
-            skipped += 1
-            continue
-        raw = str(row["raw_locations"])
-        mapped: list[str] = []
-        for raw_loc in raw.split("|"):
-            key = raw_loc.strip().lower()
-            if key in lower_map:
-                target = lower_map[key]
-                if target not in mapped:
-                    mapped.append(target)
-        if not mapped:
-            continue
-        rows.append(
-            {
-                "accession": acc,
-                "sequence": sequences[acc],
-                "locations_str": "|".join(mapped),
-                "raw_locations": raw,
-            }
+
+def _read_reference_rows_from_results_csv(results_path: Path) -> list[tuple[str, str]]:
+    """Read reference labels from DeepLoc's packaged demo predictions."""
+    results_df = pd.read_csv(results_path)
+    required = {"Protein_ID", "Localizations"}
+    missing = required.difference(results_df.columns)
+    if missing:
+        raise ValueError(f"{results_path} is missing required columns: {sorted(missing)}")
+    return list(
+        zip(
+            results_df["Protein_ID"].astype(str).tolist(),
+            results_df["Localizations"].fillna("").astype(str).tolist(),
+            strict=True,
+        )
+    )
+
+
+def _supported_reference_paths(benchmarks_dir: Path) -> tuple[Path, Path, Path]:
+    """Return the supported DeepLoc reference file locations."""
+    return (
+        benchmarks_dir / "test.fasta",
+        benchmarks_dir / "test_labels.tsv",
+        benchmarks_dir / "outputs" / "results_test.csv",
+    )
+
+
+def _load_deeploc_test_set(
+    benchmarks_dir: Path, label_map: dict[str, str]
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """
+    Load a DeepLoc reference set from disk and map labels to project classes.
+
+    Returns a DataFrame with columns:
+        accession, sequence, locations_str, raw_locations
+    """
+    fasta_path, labels_path, results_path = _supported_reference_paths(benchmarks_dir)
+
+    if not fasta_path.exists():
+        raise FileNotFoundError(
+            "DeepLoc FASTA file not found. Supported layouts are:\n"
+            f"  {fasta_path} with {labels_path}\n"
+            f"  {fasta_path} with {results_path}\n"
+            "If you are using the packaged DeepLoc 2.0 demo, point "
+            "--benchmarks-dir at the unpacked deeploc2_package directory."
         )
 
-    if skipped:
+    sequence_lookup = _read_fasta(fasta_path)
+
+    reference_rows: list[tuple[str, str]] | None = None
+    reference_type: str | None = None
+    source_path: Path | None = None
+
+    if labels_path.exists():
+        tsv_rows = _read_reference_rows_from_tsv(labels_path)
+        if any(_map_locations(raw_locations, label_map) for _, raw_locations in tsv_rows):
+            reference_rows = tsv_rows
+            reference_type = "ground_truth_labels"
+            source_path = labels_path
+        elif results_path.exists():
+            logger.warning(
+                f"{labels_path} does not contain recognizable DeepLoc location labels; "
+                f"falling back to {results_path}."
+            )
+        else:
+            sample_values = ", ".join(repr(raw) for _, raw in tsv_rows[:3]) or "<empty>"
+            raise RuntimeError(
+                "DeepLoc test_labels.tsv did not contain recognizable location labels. "
+                f"Sample values from the second column: {sample_values}. "
+                "If you copied metadata from FASTA descriptions, replace it with true "
+                "labels, or use the packaged DeepLoc demo layout with outputs/results_test.csv."
+            )
+
+    if reference_rows is None and results_path.exists():
+        reference_rows = _read_reference_rows_from_results_csv(results_path)
+        reference_type = "deeploc_predictions"
+        source_path = results_path
+
+    if reference_rows is None or reference_type is None or source_path is None:
+        raise FileNotFoundError(
+            "DeepLoc reference files not found. Supported layouts are:\n"
+            f"  {fasta_path} with {labels_path}\n"
+            f"  {fasta_path} with {results_path}\n"
+            "The packaged DeepLoc demo ships with predictions only, not ground-truth labels."
+        )
+
+    df, stats = _build_reference_frame(reference_rows, sequence_lookup, label_map)
+
+    if stats["n_skipped_missing_sequence"]:
         logger.warning(
-            f"DeepLoc: {skipped} accessions had labels but no sequence in the FASTA file — skipped"
+            "DeepLoc: %s ids had labels but no matching sequence in the FASTA file — skipped",
+            stats["n_skipped_missing_sequence"],
         )
-    if not rows:
+    if stats["n_skipped_unmapped_labels"]:
+        logger.warning(
+            "DeepLoc: %s rows were dropped because their labels do not overlap "
+            "with this project's taxonomy%s",
+            stats["n_skipped_unmapped_labels"],
+            (f" ({', '.join(stats['unmapped_labels'][:5])})" if stats["unmapped_labels"] else ""),
+        )
+    if df.empty:
         raise RuntimeError(
-            "DeepLoc test set produced 0 rows after label mapping. "
-            "Check that DEFAULT_LABEL_MAP covers your project classes."
+            "DeepLoc reference set produced 0 evaluable rows after label mapping. "
+            "Check that DEFAULT_LABEL_MAP overlaps the labels in your chosen reference file."
         )
 
-    df = pd.DataFrame(rows)
-    logger.info(f"DeepLoc test set: {len(df)} rows after label mapping")
-    return df
+    metadata = {
+        "reference_type": reference_type,
+        "reference_source": str(source_path),
+        **stats,
+    }
+    logger.info(
+        "DeepLoc reference set: %s evaluable rows from %s (%s)",
+        len(df),
+        source_path,
+        reference_type,
+    )
+    return df, metadata
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +376,7 @@ def run_deeploc_benchmark(
         checkpoint_path = candidates[0]
         logger.info(f"Using latest checkpoint: {checkpoint_path}")
 
-    df = _load_deeploc_test_set(benchmarks_dir, label_map or DEFAULT_LABEL_MAP)
+    df, metadata = _load_deeploc_test_set(benchmarks_dir, label_map or DEFAULT_LABEL_MAP)
 
     preds, targets, label_list = _predict_with_checkpoint(df, checkpoint_path, cfg)
 
@@ -244,6 +386,12 @@ def run_deeploc_benchmark(
         "model": "trained_checkpoint",
         "checkpoint": str(checkpoint_path),
         "n_samples": int(len(df)),
+        "reference_type": metadata["reference_type"],
+        "reference_source": metadata["reference_source"],
+        "n_source_rows": metadata["n_source_rows"],
+        "n_skipped_missing_sequence": metadata["n_skipped_missing_sequence"],
+        "n_skipped_unmapped_labels": metadata["n_skipped_unmapped_labels"],
+        "unmapped_labels": metadata["unmapped_labels"],
         "label_list": label_list,
         "overall": metrics["overall"],
         "per_class": metrics["per_class"],
@@ -273,7 +421,10 @@ def main() -> None:
         "--benchmarks-dir",
         type=str,
         default=None,
-        help="Directory containing test.fasta and test_labels.tsv.",
+        help=(
+            "Directory containing either test.fasta + test_labels.tsv or "
+            "the packaged DeepLoc demo layout test.fasta + outputs/results_test.csv."
+        ),
     )
     parser.add_argument("--overrides", nargs="*", default=[], help="Config overrides.")
     args = parser.parse_args()

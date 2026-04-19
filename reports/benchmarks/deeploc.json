@@ -1,0 +1,83 @@
+{
+  "checkpoint": "/home/pyros05/Escritorio/Protein-Location-Predictor/models/checkpoints/last-v5.ckpt",
+  "label_list": [
+    "Cytoplasm",
+    "Endoplasmic Reticulum",
+    "Golgi Apparatus",
+    "Membrane",
+    "Mitochondrion",
+    "Nucleus",
+    "Secreted/Extracellular"
+  ],
+  "model": "trained_checkpoint",
+  "n_samples": 2,
+  "n_skipped_missing_sequence": 0,
+  "n_skipped_unmapped_labels": 1,
+  "n_source_rows": 3,
+  "overall": {
+    "exact_match_ratio": 0.0,
+    "f1_macro": 0.14285714285714285,
+    "f1_micro": 0.3333333333333333,
+    "f1_weighted": 0.5,
+    "hamming_loss": 0.2857142857142857,
+    "precision_macro": 0.14285714285714285,
+    "recall_macro": 0.14285714285714285,
+    "total_samples": 2
+  },
+  "per_class": {
+    "Cytoplasm": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "predicted_positive": 1,
+      "recall": 0.0,
+      "support": 0
+    },
+    "Endoplasmic Reticulum": {
+      "f1": 1.0,
+      "precision": 1.0,
+      "predicted_positive": 1,
+      "recall": 1.0,
+      "support": 1
+    },
+    "Golgi Apparatus": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "predicted_positive": 0,
+      "recall": 0.0,
+      "support": 0
+    },
+    "Membrane": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "predicted_positive": 0,
+      "recall": 0.0,
+      "support": 0
+    },
+    "Mitochondrion": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "predicted_positive": 2,
+      "recall": 0.0,
+      "support": 0
+    },
+    "Nucleus": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "predicted_positive": 0,
+      "recall": 0.0,
+      "support": 0
+    },
+    "Secreted/Extracellular": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "predicted_positive": 0,
+      "recall": 0.0,
+      "support": 1
+    }
+  },
+  "reference_source": "/home/pyros05/Escritorio/Protein-Location-Predictor/benchmarks/deeploc/outputs/results_test.csv",
+  "reference_type": "deeploc_predictions",
+  "unmapped_labels": [
+    "Plastid"
+  ]
+}

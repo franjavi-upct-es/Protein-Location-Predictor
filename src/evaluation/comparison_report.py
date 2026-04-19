@@ -135,9 +135,24 @@ def build_report(cfg: DotDict, output_path: Path | None = None) -> Path:
         )
     else:
         n_samples = deeploc.get("n_samples", "?")
-        lines.append(
-            f"Evaluated on **{n_samples} sequences** from the DeepLoc 2.0 test distribution."
-        )
+        reference_type = deeploc.get("reference_type", "ground_truth_labels")
+        if reference_type == "deeploc_predictions":
+            total = deeploc.get("n_source_rows", n_samples)
+            lines.append(
+                "Evaluated on "
+                f"**{n_samples} of {total} sequences** from the packaged DeepLoc 2.0 "
+                "demo set, using DeepLoc's own predictions as the reference labels."
+            )
+            skipped = deeploc.get("n_skipped_unmapped_labels", 0)
+            if skipped:
+                lines.append(
+                    f"{skipped} sequences were dropped because their DeepLoc labels do "
+                    "not exist in this project's taxonomy."
+                )
+        else:
+            lines.append(
+                f"Evaluated on **{n_samples} sequences** from the DeepLoc 2.0 test distribution."
+            )
         lines.append("")
         lines.append(header)
         lines.append(sep)

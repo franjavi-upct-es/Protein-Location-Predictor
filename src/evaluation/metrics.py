@@ -120,21 +120,13 @@ def compute_metrics(
 
     # Overall metrics
     overall = {
-        "f1_macro": f1_score(
-            targets, predictions, average="macro", zero_division=0.0
-        ),
-        "f1_micro": f1_score(
-            targets, predictions, average="micro", zero_division=0.0
-        ),
-        "f1_weighted": f1_score(
-            targets, predictions, average="weighted", zero_division=0.0
-        ),
+        "f1_macro": f1_score(targets, predictions, average="macro", zero_division=0.0),
+        "f1_micro": f1_score(targets, predictions, average="micro", zero_division=0.0),
+        "f1_weighted": f1_score(targets, predictions, average="weighted", zero_division=0.0),
         "precision_macro": precision_score(
             targets, predictions, average="macro", zero_division=0.0
         ),
-        "recall_macro": recall_score(
-            targets, predictions, average="macro", zero_division=0.0
-        ),
+        "recall_macro": recall_score(targets, predictions, average="macro", zero_division=0.0),
         "hamming_loss": hamming_loss(targets, predictions),
         "exact_match_ratio": np.mean(np.all(predictions == targets, axis=1)),
         "total_samples": len(targets),
@@ -173,10 +165,7 @@ def format_classification_report(
         Formatted string report.
     """
     lines = []
-    lines.append(
-        f"{'Class':<28} {'Precision':>10} "
-        f"{'Recall':>10} {'F1':>10} {'Support':>10}"
-    )
+    lines.append(f"{'Class':<28} {'Precision':>10} {'Recall':>10} {'F1':>10} {'Support':>10}")
     lines.append("-" * 70)
 
     for label in label_list:
@@ -278,9 +267,7 @@ def plot_confusion_matrix(
     for i in range(n_classes):
         for j in range(n_classes):
             # Count samples where true class is i and predicted class is j
-            matrix[i, j] = int(
-                ((targets[:, i] == 1) & (predictions[:, j] == 1)).sum()
-            )
+            matrix[i, j] = int(((targets[:, i] == 1) & (predictions[:, j] == 1)).sum())
 
     _, ax = plt.subplots(figsize=(10, 8))
     im = ax.imshow(matrix, cmap="Blues", aspect="auto")
@@ -349,9 +336,7 @@ def generate_report(
 
     # Visualizations
     try:
-        plot_per_class_f1(
-            metrics, label_list, figures_dir / "f1_scores_by_class.png"
-        )
+        plot_per_class_f1(metrics, label_list, figures_dir / "f1_scores_by_class.png")
         plot_confusion_matrix(
             predictions,
             targets,

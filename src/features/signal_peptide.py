@@ -139,8 +139,7 @@ def predict_signal_peptides(
                     features[idx, 1] = probability
 
             logger.info(
-                f"SignalP complete: {int(features[:, 0].sum())} sequences "
-                f"with signal peptides"
+                f"SignalP complete: {int(features[:, 0].sum())} sequences with signal peptides"
             )
             return features
 

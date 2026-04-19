@@ -201,9 +201,7 @@ def synthetic_cfg(synthetic_project: Path):
 class TestEndToEndSmoke:
     """One slow test that runs the whole pipeline on synthetic data."""
 
-    def test_full_pipeline_runs_to_completion(
-        self, synthetic_cfg, synthetic_project: Path
-    ) -> None:
+    def test_full_pipeline_runs_to_completion(self, synthetic_cfg, synthetic_project: Path) -> None:
         import pytorch_lightning as pl
         from pytorch_lightning.loggers import CSVLogger
 

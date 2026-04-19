@@ -36,9 +36,7 @@ def _clean_sequence(sequence: str) -> str:
     return "".join(c for c in sequence.upper() if c in _STANDARD_AA)
 
 
-def compute_single_sequence(
-    sequence: str, properties: list[str]
-) -> dict[str, float]:
+def compute_single_sequence(sequence: str, properties: list[str]) -> dict[str, float]:
     """
     Compute biophysical properties for a single protein sequence.
 
@@ -143,18 +141,13 @@ def compute_biophysical_features(
     if not properties:
         return np.empty((len(sequences), 0), dtype=np.float32)
 
-    logger.info(
-        f"Computing {len(properties)} biophysical "
-        f"features for {len(sequences)} sequences"
-    )
+    logger.info(f"Computing {len(properties)} biophysical features for {len(sequences)} sequences")
 
     rows = []
     for i, seq in enumerate(sequences):
         rows.append(compute_single_sequence(str(seq), properties))
         if (i + 1) % 1000 == 0:
-            logger.debug(
-                f"  Computed features for {i + 1}/{len(sequences)} sequences"
-            )
+            logger.debug(f"  Computed features for {i + 1}/{len(sequences)} sequences")
 
     df = pd.DataFrame(rows, columns=pd.Index(properties))
 

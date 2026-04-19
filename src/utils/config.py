@@ -146,6 +146,19 @@ class DotDict(dict):
         return result
 
 
+def to_builtin(value: Any) -> Any:
+    """Recursively convert DotDict-backed config data to builtin containers."""
+    if isinstance(value, DotDict):
+        return {key: to_builtin(item) for key, item in value.items()}
+    if isinstance(value, dict):
+        return {key: to_builtin(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [to_builtin(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(to_builtin(item) for item in value)
+    return value
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------

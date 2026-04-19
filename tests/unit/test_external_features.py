@@ -42,9 +42,7 @@ class TestSignalPeptide:
         """When disabled in config, should return zeros immediately."""
         from src.utils.config import DotDict
 
-        cfg = DotDict.from_dict(
-            {"features": {"signal_peptide": {"enabled": False}}}
-        )
+        cfg = DotDict.from_dict({"features": {"signal_peptide": {"enabled": False}}})
         result = predict_signal_peptides(SAMPLE_SEQUENCES, cfg=cfg)
         assert result.shape == (3, 2)
         assert np.all(result == 0)
@@ -69,9 +67,7 @@ class TestTransmembrane:
         """When disabled in config, should return zeros immediately."""
         from src.utils.config import DotDict
 
-        cfg = DotDict.from_dict(
-            {"features": {"transmembrane": {"enabled": False}}}
-        )
+        cfg = DotDict.from_dict({"features": {"transmembrane": {"enabled": False}}})
         result = predict_transmembrane(SAMPLE_SEQUENCES, cfg=cfg)
         assert result.shape == (3, 3)
         assert np.all(result == 0)

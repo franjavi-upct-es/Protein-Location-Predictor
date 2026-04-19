@@ -9,15 +9,18 @@ from __future__ import annotations
 
 import pytest
 
-from src.serving.app import app
+import src.serving.app as serving_app
 
 
 @pytest.fixture()
-def client():
+def client(monkeypatch):
     """Create a test client for the FastAPI app."""
     from fastapi.testclient import TestClient
 
-    with TestClient(app) as c:
+    monkeypatch.setattr(serving_app, "_find_best_checkpoint", lambda cfg: None)
+    serving_app._predictor = None
+
+    with TestClient(serving_app.app) as c:
         yield c
 
 

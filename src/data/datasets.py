@@ -58,6 +58,7 @@ class ProteinDataset(Dataset):
         label_list: list[str],
         max_length: int = 1024,
         external_features: np.ndarray | None = None,
+        aux_targets: np.ndarray | None = None,
     ) -> None:
         self.sequences = df["sequence"].tolist()
         self.accessions = df["accession"].tolist()
@@ -78,6 +79,17 @@ class ProteinDataset(Dataset):
             )
         else:
             raise ValueError("DataFrame must have 'locations' or 'locations_str' column")
+
+        # Auxiliary targets (multi-task) — None means disabled
+        self.aux_targets: np.ndarray | None = None
+
+        if aux_targets is not None:
+            if len(aux_targets) != len(self.sequences):
+                raise ValueError(
+                    f"aux_targets length {len(aux_targets)} != "
+                    f"sequences length {len(self.sequences)}"
+                )
+            self.aux_targets = aux_targets
 
     def __len__(self) -> int:
         return len(self.sequences)
@@ -111,6 +123,9 @@ class ProteinDataset(Dataset):
             item["external_features"] = torch.tensor(
                 self.external_features[idx], dtype=torch.float32
             )
+
+        if self.aux_targets is not None:
+            item["aux_labels"] = torch.tensor(self.aux_targets[idx], dtype=torch.float32)
 
         return item
 
@@ -238,6 +253,10 @@ try:
             )
 
             has_ext = get_external_feature_dim(self.cfg) > 0
+            multi_task_cfg = self.cfg.get("multi_task", {}) or {}
+            use_aux = bool(multi_task_cfg.get("enabled", False))
+            if use_aux:
+                from src.data.aux_targets import aux_targets_to_tensor
 
             if stage in ("fit", None):
                 train_df = self._load_split("train")
@@ -247,9 +266,19 @@ try:
                     if has_ext
                     else None
                 )
+                train_aux = (
+                    aux_targets_to_tensor(train_df["sequence"].astype(str).tolist())
+                    if use_aux
+                    else None
+                )
                 val_ext = (
                     compute_all_external_features(val_df["sequence"].tolist(), self.cfg)
                     if has_ext
+                    else None
+                )
+                val_aux = (
+                    aux_targets_to_tensor(val_df["sequence"].astype(str).tolist())
+                    if use_aux
                     else None
                 )
                 self.train_dataset = ProteinDataset(
@@ -258,6 +287,7 @@ try:
                     self.label_list,
                     self.max_length,
                     external_features=train_ext,
+                    aux_targets=train_aux,
                 )
                 self.val_dataset = ProteinDataset(
                     val_df,
@@ -265,6 +295,7 @@ try:
                     self.label_list,
                     self.max_length,
                     external_features=val_ext,
+                    aux_targets=val_aux,
                 )
                 logger.info(
                     f"Loaded train ({len(self.train_dataset)}) "
@@ -278,12 +309,18 @@ try:
                     if has_ext
                     else None
                 )
+                test_aux = (
+                    aux_targets_to_tensor(test_df["sequence"].astype(str).tolist())
+                    if use_aux
+                    else None
+                )
                 self.test_dataset = ProteinDataset(
                     test_df,
                     self.tokenizer,
                     self.label_list,
                     self.max_length,
                     external_features=test_ext,
+                    aux_targets=test_aux,
                 )
                 logger.info(f"Loaded test ({len(self.test_dataset)}) dataset")
 

@@ -70,9 +70,7 @@ class TestFingerprintBuilders:
         assert info["python_version"]
         assert info["system"]
 
-    def test_package_versions_includes_known_packages(
-        self, minimal_cfg: DotDict
-    ) -> None:
+    def test_package_versions_includes_known_packages(self, minimal_cfg: DotDict) -> None:
         cb = RuntimeFingerprintCallback(minimal_cfg)
         pkgs = cb._package_versions()
         # torch is a hard dep so it must be there
@@ -86,9 +84,7 @@ class TestFingerprintBuilders:
         cb2 = RuntimeFingerprintCallback(minimal_cfg)
         assert cb1._config_hash() == cb2._config_hash()
 
-    def test_split_hashes_picks_up_train_csv(
-        self, minimal_cfg: DotDict
-    ) -> None:
+    def test_split_hashes_picks_up_train_csv(self, minimal_cfg: DotDict) -> None:
         cb = RuntimeFingerprintCallback(minimal_cfg)
         hashes = cb._split_hashes()
         assert hashes.get("train") is not None
@@ -102,9 +98,7 @@ class TestFingerprintBuilders:
 
 
 class TestLifecycle:
-    def test_on_train_start_persists_to_disk(
-        self, minimal_cfg: DotDict, tmp_path: Path
-    ) -> None:
+    def test_on_train_start_persists_to_disk(self, minimal_cfg: DotDict, tmp_path: Path) -> None:
         cb = RuntimeFingerprintCallback(minimal_cfg)
         trainer = MagicMock()
         trainer.logger = None  # no MLflow

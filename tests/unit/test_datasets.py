@@ -133,9 +133,7 @@ class TestProteinDataset:
         assert labels.sum() == 1.0
         assert labels[label_list.index("Membrane")] == 1.0
 
-    def test_with_locations_str(
-        self, tokenizer: MockTokenizer, label_list: list[str]
-    ) -> None:
+    def test_with_locations_str(self, tokenizer: MockTokenizer, label_list: list[str]) -> None:
         df = pd.DataFrame(
             {
                 "accession": ["P001"],
@@ -200,10 +198,7 @@ class TestDynamicPaddingCollate:
         collated = dynamic_padding_collate(batch)
 
         # All input_ids in the batch should have the same length
-        assert (
-            collated["input_ids"].shape[1]
-            == collated["attention_mask"].shape[1]
-        )
+        assert collated["input_ids"].shape[1] == collated["attention_mask"].shape[1]
 
     def test_dynamic_padding_does_not_pad_to_dataset_max_length(
         self,

@@ -5,10 +5,10 @@
 # ===========================================================================
 
 .PHONY: help sync sync-dev test test-fast test-cov lint format typecheck \
-        quality clean download process train serve docker-build docker-run \
-        hw-detect vram-estimate qlora-smoke sdpa-smoke smoke auto-batch-size \
-        linear-probe xgboost-baseline deeploc-benchmark comparison-report \
-        baselines lock
+        quality clean download process split train serve docker-build \
+				docker-run hw-detect vram-estimate qlora-smoke sdpa-smoke smoke \
+				auto-batch-size linear-probe xgboost-baseline deeploc-benchmark \
+				comparison-report baselines lock
 
 # ---------------------------------------------------------------------------
 # Help
@@ -66,6 +66,9 @@ download: ## Download protein data from UniProt
 
 process: ## Process and clean downloaded data
 	uv run python -m src.data.processing
+
+split: ## Split downloaded data for training (train/val/test)
+	uv run python -m src.data.splitting
 
 train: ## Train the model
 	uv run python -m src.training.train

@@ -64,9 +64,7 @@ def _config_fingerprint(cfg: DotDict, max_seq_length: int) -> str:
         "lora_target_modules": list(cfg.model.lora.get("target_modules", [])),
         "use_sdpa": bool(cfg.model.backbone.get("use_sdpa_attention", False)),
         "quantization": dict(cfg.model.get("quantization", {}) or {}),
-        "gradient_checkpointing": bool(
-            cfg.training.get("gradient_checkpointing", True)
-        ),
+        "gradient_checkpointing": bool(cfg.training.get("gradient_checkpointing", True)),
         "precision": str(cfg.training.get("precision", "32")),
         "max_seq_length": int(max_seq_length),
     }
@@ -116,15 +114,9 @@ def _make_synthetic_batch(
 ) -> dict[str, torch.Tensor]:
     """Build a synthetic batch matching the model's expected interface."""
     return {
-        "input_ids": torch.randint(
-            4, 28, (batch_size, seq_length), device=device
-        ),
-        "attention_mask": torch.ones(
-            (batch_size, seq_length), dtype=torch.long, device=device
-        ),
-        "labels": torch.randint(
-            0, 2, (batch_size, num_classes), device=device
-        ).float(),
+        "input_ids": torch.randint(4, 28, (batch_size, seq_length), device=device),
+        "attention_mask": torch.ones((batch_size, seq_length), dtype=torch.long, device=device),
+        "labels": torch.randint(0, 2, (batch_size, num_classes), device=device).float(),
     }
 
 
@@ -145,9 +137,7 @@ def _try_batch_size(
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()
 
-        batch = _make_synthetic_batch(
-            batch_size, seq_length, num_classes, device
-        )
+        batch = _make_synthetic_batch(batch_size, seq_length, num_classes, device)
 
         # Forward
         logits = model(
@@ -156,9 +146,7 @@ def _try_batch_size(
         )
 
         # Synthetic loss (BCE on the multi-label logits) + backward
-        loss = torch.nn.functional.binary_cross_entropy_with_logits(
-            logits, batch["labels"]
-        )
+        loss = torch.nn.functional.binary_cross_entropy_with_logits(logits, batch["labels"])
         loss.backward()
 
         # Cleanup
@@ -217,9 +205,7 @@ def find_max_batch_size(
         this as an error condition).
     """
     if not torch.cuda.is_available():
-        logger.warning(
-            "CUDA not available — auto batch-size returning 1 (CPU fallback)"
-        )
+        logger.warning("CUDA not available — auto batch-size returning 1 (CPU fallback)")
         return 1
 
     fingerprint = _config_fingerprint(cfg, max_seq_length)
@@ -227,15 +213,11 @@ def find_max_batch_size(
     if use_cache:
         cached = _load_cached(cfg, fingerprint)
         if cached is not None:
-            logger.info(
-                f"Auto batch-size: cache hit "
-                f"(fingerprint={fingerprint}) -> {cached}"
-            )
+            logger.info(f"Auto batch-size: cache hit (fingerprint={fingerprint}) -> {cached}")
             return cached
 
     logger.info(
-        f"Auto batch-size: probing "
-        f"(fingerprint={fingerprint}, seq_length={max_seq_length})..."
+        f"Auto batch-size: probing (fingerprint={fingerprint}, seq_length={max_seq_length})..."
     )
 
     # Build the real model once. This dominates probe time but is the
@@ -249,9 +231,7 @@ def find_max_batch_size(
 
     backbone = build_esm_lora_backbone(
         cfg,
-        enable_gradient_checkpointing=cfg.training.get(
-            "gradient_checkpointing", True
-        ),
+        enable_gradient_checkpointing=cfg.training.get("gradient_checkpointing", True),
     )
     emb_dim = get_embedding_dim(cfg)
     head = ClassifierHead.from_config(cfg, emb_dim, num_classes)
@@ -271,9 +251,7 @@ def find_max_batch_size(
             input_ids: torch.Tensor,
             attention_mask: torch.Tensor,
         ) -> torch.Tensor:
-            out = self.backbone(
-                input_ids=input_ids, attention_mask=attention_mask
-            )
+            out = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
             pooled = extract_sequence_representation(
                 out,
                 attention_mask,
@@ -288,9 +266,7 @@ def find_max_batch_size(
     fitted = 1
     for candidate in candidates:
         logger.info(f"  Trying batch_size={candidate}...")
-        if _try_batch_size(
-            model, candidate, max_seq_length, num_classes, "cuda"
-        ):
+        if _try_batch_size(model, candidate, max_seq_length, num_classes, "cuda"):
             fitted = candidate
             logger.info(f"  -> batch_size={candidate} fits")
             break
@@ -350,9 +326,7 @@ def main() -> None:
             cfg.model.backbone.get("max_position_embeddings", 1024)
         )
 
-    bs = find_max_batch_size(
-        cfg, max_seq_length=seq_length, use_cache=not args.no_cache
-    )
+    bs = find_max_batch_size(cfg, max_seq_length=seq_length, use_cache=not args.no_cache)
     print(f"\nMax batch size for seq_length={seq_length}: {bs}")
 
 

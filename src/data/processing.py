@@ -236,18 +236,14 @@ def process_data(
 
     multi_label = proc_cfg.get("multi_label", True)
 
-    df["parsed_locations"] = df["subcellular_location"].apply(
-        parse_location_string
-    )
+    df["parsed_locations"] = df["subcellular_location"].apply(parse_location_string)
     df["locations"] = df["parsed_locations"].apply(
         lambda locs: map_to_canonical(locs, location_groups)
     )
 
     # Drop proteins with no mapped locations
     df = df[df["locations"].apply(len) > 0].copy()  # pyright: ignore[reportAssignmentType]
-    logger.info(
-        f"After location mapping: {len(df)} proteins with valid locations"
-    )
+    logger.info(f"After location mapping: {len(df)} proteins with valid locations")
 
     if not multi_label:
         # Single-label mode: keep only the first location
@@ -263,9 +259,7 @@ def process_data(
     )
     invalid_count = (~valid_mask).sum()
     if invalid_count > 0:
-        logger.warning(
-            f"Filtered {invalid_count} proteins with invalid sequences"
-        )
+        logger.warning(f"Filtered {invalid_count} proteins with invalid sequences")
     df = df[valid_mask].copy()  # pyright: ignore[reportAssignmentType]
 
     # 5. Filter by minimum class frequency
@@ -278,8 +272,7 @@ def process_data(
 
     valid_labels = set(label_counts[label_counts >= min_samples].index)  # pyright: ignore[reportAttributeAccessIssue]
     logger.info(
-        f"Keeping {len(valid_labels)} classes with >= {min_samples} samples: "
-        f"{sorted(valid_labels)}"
+        f"Keeping {len(valid_labels)} classes with >= {min_samples} samples: {sorted(valid_labels)}"
     )
 
     # Filter: keep proteins that have at least one valid label
@@ -305,10 +298,7 @@ def process_data(
         keep_cols.append("organism_name")
     df = df[keep_cols].reset_index(drop=True)  # pyright: ignore[reportAssignmentType]
 
-    logger.info(
-        f"Processing complete: {len(df)} proteins, "
-        f"{len(valid_labels)} location classes"
-    )
+    logger.info(f"Processing complete: {len(df)} proteins, {len(valid_labels)} location classes")
 
     # 7. Save processed data
     proc_dir = resolve_path(cfg, "paths.processed_dir")

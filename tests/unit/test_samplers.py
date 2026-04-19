@@ -27,9 +27,7 @@ class TestConstruction:
         assert len(s) == (100 + 7) // 8  # ceil(100/8)
 
     def test_drop_last(self, synthetic_lengths: list[int]) -> None:
-        s = LengthBucketBatchSampler(
-            synthetic_lengths, batch_size=8, drop_last=True
-        )
+        s = LengthBucketBatchSampler(synthetic_lengths, batch_size=8, drop_last=True)
         assert len(s) == 100 // 8
 
     def test_invalid_batch_size_raises(self) -> None:
@@ -42,9 +40,7 @@ class TestConstruction:
 
     def test_invalid_jitter_raises(self) -> None:
         with pytest.raises(ValueError, match="jitter"):
-            LengthBucketBatchSampler(
-                [1, 2, 3], batch_size=2, jitter_fraction=2.0
-            )
+            LengthBucketBatchSampler([1, 2, 3], batch_size=2, jitter_fraction=2.0)
 
 
 # ---------------------------------------------------------------------------
@@ -56,25 +52,17 @@ class TestCoverage:
     """Every sample must appear exactly once per epoch (unless drop_last)."""
 
     def test_all_indices_present(self, synthetic_lengths: list[int]) -> None:
-        s = LengthBucketBatchSampler(
-            synthetic_lengths, batch_size=8, shuffle=True, seed=42
-        )
+        s = LengthBucketBatchSampler(synthetic_lengths, batch_size=8, shuffle=True, seed=42)
         all_indices = [idx for batch in s for idx in batch]
         assert sorted(all_indices) == list(range(100))
 
     def test_no_duplicates(self, synthetic_lengths: list[int]) -> None:
-        s = LengthBucketBatchSampler(
-            synthetic_lengths, batch_size=8, shuffle=True, seed=42
-        )
+        s = LengthBucketBatchSampler(synthetic_lengths, batch_size=8, shuffle=True, seed=42)
         all_indices = [idx for batch in s for idx in batch]
         assert len(set(all_indices)) == len(all_indices)
 
-    def test_drop_last_omits_remainder(
-        self, synthetic_lengths: list[int]
-    ) -> None:
-        s = LengthBucketBatchSampler(
-            synthetic_lengths, batch_size=8, drop_last=True, shuffle=False
-        )
+    def test_drop_last_omits_remainder(self, synthetic_lengths: list[int]) -> None:
+        s = LengthBucketBatchSampler(synthetic_lengths, batch_size=8, drop_last=True, shuffle=False)
         all_indices = [idx for batch in s for idx in batch]
         # 100 / 8 = 12 full batches, 4 remainder dropped
         assert len(all_indices) == 96
@@ -88,9 +76,7 @@ class TestCoverage:
 class TestPaddingEfficiency:
     """The whole point of bucketing: similar lengths in the same batch."""
 
-    def test_bucketed_padding_lower_than_random(
-        self, synthetic_lengths: list[int]
-    ) -> None:
+    def test_bucketed_padding_lower_than_random(self, synthetic_lengths: list[int]) -> None:
         lengths_arr = np.asarray(synthetic_lengths)
         batch_size = 8
 
@@ -131,9 +117,7 @@ class TestDeterminism:
         s2 = LengthBucketBatchSampler(synthetic_lengths, batch_size=8, seed=42)
         assert list(s1) == list(s2)
 
-    def test_set_epoch_changes_order(
-        self, synthetic_lengths: list[int]
-    ) -> None:
+    def test_set_epoch_changes_order(self, synthetic_lengths: list[int]) -> None:
         s = LengthBucketBatchSampler(synthetic_lengths, batch_size=8, seed=42)
         s.set_epoch(0)
         epoch0 = list(s)

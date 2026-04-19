@@ -87,9 +87,7 @@ class LengthBucketBatchSampler(Sampler[list[int]]):
         if batch_size < 1:
             raise ValueError(f"batch_size must be >= 1, got {batch_size}")
         if not 0.0 <= jitter_fraction <= 1.0:
-            raise ValueError(
-                f"jitter_fraction must be in [0, 1], got {jitter_fraction}"
-            )
+            raise ValueError(f"jitter_fraction must be in [0, 1], got {jitter_fraction}")
 
         self.lengths = np.asarray(lengths, dtype=np.int64)
         self.batch_size = int(batch_size)
@@ -104,9 +102,7 @@ class LengthBucketBatchSampler(Sampler[list[int]]):
 
         n_full = len(self.lengths) // self.batch_size
         self._n_batches = (
-            n_full
-            if self.drop_last
-            else n_full + (1 if len(self.lengths) % self.batch_size else 0)
+            n_full if self.drop_last else n_full + (1 if len(self.lengths) % self.batch_size else 0)
         )
 
         logger.info(

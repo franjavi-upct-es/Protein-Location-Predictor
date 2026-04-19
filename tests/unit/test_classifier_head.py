@@ -18,9 +18,7 @@ class TestClassifierHead:
         assert out.shape == (4, 5)
 
     def test_custom_hidden_dims(self) -> None:
-        head = ClassifierHead(
-            input_dim=256, num_classes=3, hidden_dims=[128, 64]
-        )
+        head = ClassifierHead(input_dim=256, num_classes=3, hidden_dims=[128, 64])
         x = torch.randn(2, 256)
         out = head(x)
         assert out.shape == (2, 3)

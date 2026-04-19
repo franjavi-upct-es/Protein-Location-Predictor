@@ -167,9 +167,7 @@ def _resolve_lora_target_modules(
     seen: set[str] = set()
 
     for module_name, module in base_model.named_modules():
-        if not module_name or not _matches_lora_target(
-            module_name, configured_target_modules
-        ):
+        if not module_name or not _matches_lora_target(module_name, configured_target_modules):
             continue
 
         if not _supports_peft_bnb_lora_target(module):
@@ -182,18 +180,13 @@ def _resolve_lora_target_modules(
 
     if resolved_targets:
         if skipped_targets:
-            logger.warning(
-                "Skipping incompatible quantized LoRA targets: "
-                f"{skipped_targets}"
-            )
+            logger.warning(f"Skipping incompatible quantized LoRA targets: {skipped_targets}")
         return resolved_targets
 
     return configured_target_modules
 
 
-def _matches_lora_target(
-    module_name: str, configured_target_modules: list[str]
-) -> bool:
+def _matches_lora_target(module_name: str, configured_target_modules: list[str]) -> bool:
     """Return True if a module name matches any configured target."""
     return any(
         module_name == target or module_name.endswith(f".{target}")
@@ -209,10 +202,7 @@ def _supports_peft_bnb_lora_target(module: nn.Module) -> bool:
         return True
 
     if isinstance(module, bnb.nn.Linear4bit):
-        return all(
-            hasattr(module.weight, attr)
-            for attr in ("compress_statistics", "quant_type")
-        )
+        return all(hasattr(module.weight, attr) for attr in ("compress_statistics", "quant_type"))
 
     if isinstance(module, bnb.nn.Linear8bitLt):
         return hasattr(module, "state") and hasattr(module, "index")
@@ -313,11 +303,7 @@ def get_quantization_runtime_issue() -> str | None:
 
     get_arch_list = getattr(torch.cuda, "get_arch_list", None)
     supported_arches = list(get_arch_list()) if callable(get_arch_list) else []
-    supported_arches = [
-        arch
-        for arch in supported_arches
-        if arch.startswith(("sm_", "compute_"))
-    ]
+    supported_arches = [arch for arch in supported_arches if arch.startswith(("sm_", "compute_"))]
 
     required_sm = f"sm_{major}{minor}"
     required_compute = f"compute_{major}{minor}"
@@ -394,10 +380,7 @@ def _load_quantized_backbone(
         use_gradient_checkpointing=enable_gradient_checkpointing,
     )
     if enable_gradient_checkpointing:
-        logger.info(
-            "Gradient checkpointing enabled "
-            "(via prepare_model_for_kbit_training)."
-        )
+        logger.info("Gradient checkpointing enabled (via prepare_model_for_kbit_training).")
 
     return cast(PreTrainedModel, prepared_model)
 
@@ -427,8 +410,7 @@ def _build_bnb_config(quant_cfg: DotDict | dict[str, Any]) -> Any:
         import bitsandbytes  # noqa: F401
     except ImportError as e:
         raise ImportError(
-            "Quantization requires the 'bitsandbytes' package. Install "
-            "it with: uv add bitsandbytes"
+            "Quantization requires the 'bitsandbytes' package. Install it with: uv add bitsandbytes"
         ) from e
 
     from transformers import BitsAndBytesConfig
@@ -447,8 +429,7 @@ def _build_bnb_config(quant_cfg: DotDict | dict[str, Any]) -> Any:
     }
     if compute_dtype_str not in dtype_map:
         raise ValueError(
-            f"Unknown compute_dtype '{compute_dtype_str}'. "
-            f"Supported: {sorted(dtype_map)}"
+            f"Unknown compute_dtype '{compute_dtype_str}'. Supported: {sorted(dtype_map)}"
         )
     compute_dtype = dtype_map[compute_dtype_str]
 
@@ -463,6 +444,5 @@ def _build_bnb_config(quant_cfg: DotDict | dict[str, Any]) -> Any:
         return BitsAndBytesConfig(load_in_8bit=True)
     else:
         raise ValueError(
-            f"Unknown quantization method: '{method}'. "
-            "Supported: 'nf4', 'fp4', 'int8'."
+            f"Unknown quantization method: '{method}'. Supported: 'nf4', 'fp4', 'int8'."
         )

@@ -1,0 +1,115 @@
+{
+  "backbone": "facebook/esm2_t30_150M_UR50D",
+  "label_list": [
+    "Cytoplasm",
+    "Endoplasmic Reticulum",
+    "Golgi Apparatus",
+    "Membrane",
+    "Mitochondrion",
+    "Nucleus",
+    "Peroxisome",
+    "Secreted/Extracellular",
+    "Vacuole"
+  ],
+  "learning_rate": 0.1,
+  "max_depth": 6,
+  "model": "xgboost_baseline",
+  "n_classes": 9,
+  "n_estimators": 300,
+  "pooling": "mean",
+  "test": {
+    "exact_match_ratio": 0.6608679728987364,
+    "f1_macro": 0.7646990285288247,
+    "f1_micro": 0.8331228816375357,
+    "f1_weighted": 0.8314587841307772,
+    "hamming_loss": 0.051089544039553195,
+    "precision_macro": 0.869440188541504,
+    "recall_macro": 0.7021493231159901,
+    "total_samples": 5461
+  },
+  "test_per_class": {
+    "Cytoplasm": {
+      "f1": 0.8222485207100592,
+      "precision": 0.7967889908256881,
+      "predicted_positive": 2180,
+      "recall": 0.8493887530562347,
+      "support": 2045
+    },
+    "Endoplasmic Reticulum": {
+      "f1": 0.7286245353159851,
+      "precision": 0.814404432132964,
+      "predicted_positive": 361,
+      "recall": 0.6591928251121076,
+      "support": 446
+    },
+    "Golgi Apparatus": {
+      "f1": 0.704119850187266,
+      "precision": 0.8281938325991189,
+      "predicted_positive": 227,
+      "recall": 0.6123778501628665,
+      "support": 307
+    },
+    "Membrane": {
+      "f1": 0.8730337078651685,
+      "precision": 0.9013921113689095,
+      "predicted_positive": 1724,
+      "recall": 0.8464052287581699,
+      "support": 1836
+    },
+    "Mitochondrion": {
+      "f1": 0.7957671957671958,
+      "precision": 0.9016786570743405,
+      "predicted_positive": 417,
+      "recall": 0.7121212121212122,
+      "support": 528
+    },
+    "Nucleus": {
+      "f1": 0.8581278175550252,
+      "precision": 0.8615548455804047,
+      "predicted_positive": 1878,
+      "recall": 0.8547279450607501,
+      "support": 1893
+    },
+    "Peroxisome": {
+      "f1": 0.6511627906976745,
+      "precision": 1.0,
+      "predicted_positive": 14,
+      "recall": 0.4827586206896552,
+      "support": 29
+    },
+    "Secreted/Extracellular": {
+      "f1": 0.8566142460684552,
+      "precision": 0.8638059701492538,
+      "predicted_positive": 536,
+      "recall": 0.8495412844036697,
+      "support": 545
+    },
+    "Vacuole": {
+      "f1": 0.5925925925925926,
+      "precision": 0.8571428571428571,
+      "predicted_positive": 28,
+      "recall": 0.4528301886792453,
+      "support": 53
+    }
+  },
+  "train": {
+    "exact_match_ratio": 0.9935248410642806,
+    "f1_macro": 0.9989585834097622,
+    "f1_micro": 0.9976969138645785,
+    "f1_weighted": 0.9977022278713396,
+    "hamming_loss": 0.0007194621039688146,
+    "precision_macro": 0.9980190979777314,
+    "recall_macro": 0.9999056103601384,
+    "total_samples": 25482
+  },
+  "val": {
+    "exact_match_ratio": 0.6586705731550998,
+    "f1_macro": 0.7547932181650777,
+    "f1_micro": 0.829985893732787,
+    "f1_weighted": 0.82793424251727,
+    "hamming_loss": 0.05149646991800443,
+    "precision_macro": 0.8817444306759299,
+    "recall_macro": 0.6858530709933207,
+    "total_samples": 5461
+  }
+}

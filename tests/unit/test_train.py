@@ -5,9 +5,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import torch
+
 from src.training.train import (
     _configure_torch_runtime,
     _resolve_mlflow_tracking_uri,
+    train,
 )
 from src.utils.config import DotDict
 
@@ -33,9 +36,7 @@ class TestResolveMlflowTrackingUri:
             {
                 "project_root": "/tmp/protein-loc",
                 "paths": {"mlflow_dir": "mlruns"},
-                "training": {
-                    "experiment": {"tracking_uri": "sqlite:///mlflow.db"}
-                },
+                "training": {"experiment": {"tracking_uri": "sqlite:///mlflow.db"}},
             }
         )
 
@@ -85,3 +86,77 @@ class TestTrainingHardwareOverrides:
         cfg.training["max_sequence_length"] = 1024
 
         assert cfg.training.max_sequence_length == 1024
+
+
+class TestCheckpointLoading:
+    """Tests for trusted local checkpoint restore behavior."""
+
+    def test_test_phase_uses_full_checkpoint_restore(self, monkeypatch) -> None:
+        cfg = DotDict.from_dict(
+            {
+                "project": {"seed": 42},
+                "training": {
+                    "deterministic": True,
+                    "batch_size": 2,
+                    "precision": "32",
+                    "gradient_checkpointing": False,
+                    "max_sequence_length": 128,
+                },
+            }
+        )
+
+        test_calls: list[dict[str, object]] = []
+        model = object()
+        datamodule = object()
+
+        class DummyTrainer:
+            checkpoint_callback = SimpleNamespace(best_model_path="/tmp/best.ckpt")
+
+            def fit(self, model, datamodule=None) -> None:  # type: ignore[no-untyped-def]
+                return None
+
+            def test(self, model, datamodule=None, ckpt_path=None, weights_only=None) -> None:  # type: ignore[no-untyped-def]
+                test_calls.append(
+                    {
+                        "ckpt_path": ckpt_path,
+                        "weights_only": weights_only,
+                    }
+                )
+
+        monkeypatch.setattr("src.training.train.seed_everything", lambda *args, **kwargs: None)
+        monkeypatch.setattr(
+            "src.training.train.detect_hardware",
+            lambda cfg: SimpleNamespace(
+                batch_size=2,
+                precision="32",
+                gradient_checkpointing=False,
+                max_sequence_length=128,
+            ),
+        )
+        monkeypatch.setattr("src.training.train._configure_torch_runtime", lambda hw: None)
+        monkeypatch.setattr(
+            "src.training.train._discover_labels",
+            lambda cfg: (["Cytoplasm"], torch.tensor([1.0])),
+        )
+        monkeypatch.setattr(
+            "src.training.train.ProteinDataModule",
+            lambda cfg, label_list: datamodule,
+        )
+        monkeypatch.setattr(
+            "src.training.train.ProteinLocalizationModule",
+            lambda cfg, label_list, class_frequencies: model,
+        )
+        monkeypatch.setattr("src.training.train._build_trainer", lambda cfg, hw: DummyTrainer())
+        monkeypatch.setattr(
+            "src.training.train._tune_and_save_thresholds",
+            lambda cfg, model, dm: None,
+        )
+
+        train(cfg)
+
+        assert test_calls == [
+            {
+                "ckpt_path": "/tmp/best.ckpt",
+                "weights_only": False,
+            }
+        ]

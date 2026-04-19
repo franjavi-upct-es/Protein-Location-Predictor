@@ -42,11 +42,6 @@ from src.utils.reproducibility import seed_everything
 
 logger = get_logger(__name__)
 
-# Allowlist DotDict so Lightning can load checkpoints under PyTorch 2.6+
-# weights_only=True default — hyperparameters saved via save_hyperparameters()
-# embed the cfg DotDict, which is otherwise rejected by the safe unpickler.
-torch.serialization.add_safe_globals([DotDict])
-
 
 # ---------------------------------------------------------------------------
 # Label and class frequency discovery
@@ -356,10 +351,20 @@ def train(cfg: DotDict) -> None:
     trainer.fit(model, datamodule=dm)
 
     # 8. Test with best checkpoint
-    best_path = trainer.checkpoint_callback.best_model_path
+    checkpoint_callback = trainer.checkpoint_callback
+    best_path = (
+        str(getattr(checkpoint_callback, "best_model_path", ""))
+        if checkpoint_callback is not None
+        else ""
+    )
     if best_path:
         logger.info(f"Testing with best checkpoint: {best_path}")
-        trainer.test(model, datamodule=dm, ckpt_path=best_path)
+        trainer.test(
+            model,
+            datamodule=dm,
+            ckpt_path=best_path,
+            weights_only=False,
+        )
     else:
         logger.warning("No best checkpoint found — testing with last model state")
         trainer.test(model, datamodule=dm)

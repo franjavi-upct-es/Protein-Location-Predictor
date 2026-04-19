@@ -13,6 +13,7 @@ from src.utils.config import (
     _apply_dot_override,
     _deep_merge,
     load_config,
+    to_builtin,
 )
 
 # ---------------------------------------------------------------------------
@@ -50,6 +51,21 @@ class TestDotDict:
     def test_from_dict_preserves_none(self) -> None:
         d = DotDict.from_dict({"value": None})
         assert d.value is None
+
+    def test_to_builtin_converts_nested_dotdicts(self) -> None:
+        d = DotDict.from_dict(
+            {
+                "model": {"pooling": "mean"},
+                "entries": [{"name": "a"}, {"name": "b"}],
+            }
+        )
+
+        plain = to_builtin(d)
+
+        assert type(plain) is dict
+        assert type(plain["model"]) is dict
+        assert type(plain["entries"][0]) is dict
+        assert plain["entries"][1]["name"] == "b"
 
 
 # ---------------------------------------------------------------------------
@@ -187,9 +203,7 @@ class TestLoadConfig:
         assert cfg.model.lora.rank == 16
         assert cfg.training.max_epochs == 5
 
-    def test_env_var_override(
-        self, temp_config_dir: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_var_override(self, temp_config_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("PROT_LOC_MODEL__LORA__RANK", "32")
         cfg = load_config(mode="base", config_dir=temp_config_dir)
         assert cfg.model.lora.rank == 32

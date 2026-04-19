@@ -158,8 +158,16 @@ class ModelSection(BaseModel):
     backbone: BackboneSection
     lora: LoRASection
     classifier: ClassifierSection
-    pooling: Literal["mean", "cls", "mean_cls"] = "mean"
+    pooling: Literal["mean", "cls", "mean_cls", "light_attention"] = "mean"
+    pooling_dropout: float = Field(default=0.1, ge=0.0, le=1.0)
     quantization: QuantizationSection = Field(default_factory=QuantizationSection)
+
+
+class MultiTaskSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    loss_weight: float = Field(default=0.2, ge=0.0, le=10.0)
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +335,7 @@ class ProjectConfig(BaseModel):
     training: TrainingSection | None = None
     inference: InferenceSection | None = None
     serving: ServingSection | None = None
+    multi_task: MultiTaskSection = Field(default_factory=MultiTaskSection)
 
 
 # Keys that ``load_config`` injects at runtime and that are NOT part of

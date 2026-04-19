@@ -170,3 +170,15 @@ features:
   transmembrane:
     enabled: false # Requires TMHMM or DeepTMHMM
     binary_path: null
+
+# ---------------------------------------------------------------------------
+# Multi-task auxiliary heads (optional)
+# ---------------------------------------------------------------------------
+multi_task:
+  # When true, the model trains an auxiliary head to predict
+  # heuristic biological properties (signal peptide, transmembrane)
+  # in addition to the main localization task. Acts as regularization
+  # and inductive bias. Targets are computed on-the-fly from the raw
+  # sequence using the heuristics in src/data/aux_targets.py.
+  enabled: false
+  loss_weight: 0.2

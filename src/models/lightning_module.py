@@ -14,7 +14,7 @@ Usage::
 
 from __future__ import annotations
 
-from typing import TypedDict, cast
+from typing import Any, TypedDict
 
 import pytorch_lightning as pl
 import torch
@@ -32,7 +32,7 @@ from src.models.esm_lora import (
     get_embedding_dim,
 )
 from src.models.losses import CombinedLoss
-from src.utils.config import DotDict
+from src.utils.config import DotDict, to_builtin
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -65,12 +65,22 @@ class ProteinLocalizationModule(pl.LightningModule):
 
     def __init__(
         self,
-        cfg: DotDict,
+        cfg: DotDict | dict[str, Any],
         label_list: list[str],
         class_frequencies: torch.Tensor | None = None,
     ) -> None:
         super().__init__()
-        self.save_hyperparameters(ignore=["class_frequencies"])
+        if not isinstance(cfg, DotDict):
+            cfg = DotDict.from_dict(cfg)
+
+        # Save only builtin containers so future checkpoints remain compatible
+        # with PyTorch's weights_only checkpoint loader.
+        self.save_hyperparameters(
+            {
+                "cfg": to_builtin(cfg),
+                "label_list": list(label_list),
+            }
+        )
 
         self.cfg = cfg
         self.label_list = label_list
@@ -79,6 +89,16 @@ class ProteinLocalizationModule(pl.LightningModule):
         training_cfg = cfg.get("training", {})
         self.enable_gc = training_cfg.get("gradient_checkpointing", True)
         self.pooling = cfg.model.get("pooling", "mean")
+
+        # Optional backbone
+        self.attention_pooler: torch.nn.Module | None = None
+        if self.pooling == "light_attention":
+            from src.models.pooling import LightAttentionPooler
+
+            self.attention_pooler = LightAttentionPooler(
+                hidden_dim=get_embedding_dim(cfg),
+                dropout=float(cfg.model.get("pooling_dropout", 0.1)),
+            )
 
         # Build backbone
         self.backbone = build_esm_lora_backbone(
@@ -90,6 +110,7 @@ class ProteinLocalizationModule(pl.LightningModule):
         emb_dim = get_embedding_dim(cfg)
         if self.pooling == "mean_cls":
             emb_dim *= 2
+        # light_attention preserves the original hidden dimension
 
         # Account for optional external features
         ext_dim = 0
@@ -99,6 +120,21 @@ class ProteinLocalizationModule(pl.LightningModule):
         input_dim = emb_dim + ext_dim
 
         self.classifier = ClassifierHead.from_config(cfg, input_dim, self.num_classes)
+
+        # Optional auxiliary multi-task head
+        multi_task_cfg = cfg.get("multi_task", {}) or {}
+        self.use_multi_task = bool(multi_task_cfg.get("enabled", False))
+        self.aux_loss_weight = float(multi_task_cfg.get("loss_weight", 0.2))
+        self.aux_head: torch.nn.Module | None = None
+        if self.use_multi_task:
+            from src.data.aux_targets import AUX_TARGET_NAMES
+
+            self.num_aux = len(AUX_TARGET_NAMES)
+            self.aux_head = torch.nn.Linear(emb_dim, self.num_aux)
+            logger.info(
+                f"Multi-task enabled: {self.num_aux} auxiliary targets, "
+                f"loss_weight={self.aux_loss_weight}"
+            )
 
         # Build loss
         self.criterion = CombinedLoss.from_config(cfg, label_list, class_frequencies)
@@ -122,30 +158,52 @@ class ProteinLocalizationModule(pl.LightningModule):
         """
         Forward pass through backbone + classifier.
 
-        Args:
-            input_ids: Tokenized sequences (B, L).
-            attention_mask: Attention mask (B, L).
-            external_features: Optional biophysical features (B, F).
+        Returns the main task logits as a tensor for backward compatibility.
+        Use ``forward_with_aux`` if you also need the auxiliary logits.
+        """
+        return self.forward_with_aux(input_ids, attention_mask, external_features)["logits"]
 
-        Returns:
-            Logits tensor of shape (B, num_classes).
+    def forward_with_aux(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        external_features: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """
+        Forward pass returning both main and (optional) auxiliary logits.
+
+        Returns a dict with:
+            logits: (B, num_classes) main task
+            aux_logits: (B, num_aux) auxiliary task, only if enabled
         """
         # ESM-2 forward
         outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
 
         # Pool to sequence-level representation
-        embeddings = extract_sequence_representation(
-            outputs,
-            attention_mask,
-            pooling=self.pooling,
-        )
+        if self.pooling == "light_attention":
+            assert self.attention_pooler is not None
+            pooled = self.attention_pooler(outputs.last_hidden_state, attention_mask)
+        else:
+            pooled = extract_sequence_representation(
+                outputs,
+                attention_mask,
+                pooling=self.pooling,
+            )
 
-        # Concatenate external features if provided
+        # Auxiliary head reads the pooled embedding *before* external features
+        # are concatenated, so it depends only on the backbone signal
+        result: dict[str, torch.Tensor] = {}
+        if self.aux_head is not None:
+            result["aux_logits"] = self.aux_head(pooled)
+
+        # Concatenate external features for the main classifier
         if external_features is not None:
-            embeddings = torch.cat([embeddings, external_features], dim=-1)
+            embeddings = torch.cat([pooled, external_features], dim=-1)
+        else:
+            embeddings = pooled
 
-        # Classify
-        return cast(torch.Tensor, self.classifier(embeddings))
+        result["logits"] = self.classifier(embeddings)
+        return result
 
     def _shared_step(
         self,
@@ -153,18 +211,29 @@ class ProteinLocalizationModule(pl.LightningModule):
         stage: str,
     ) -> StepResult:
         """Shared logic for train/val/test steps."""
-        logits = self(
+        forward_out = self.forward_with_aux(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
             external_features=batch.get("external_features"),
         )
+        logits = forward_out["logits"]
         targets = batch["labels"]
 
         losses = self.criterion(logits, targets)
+        total_loss = losses["total"]
+
+        # Auxiliary loss (binary cross-entropy on the aux head)
+        if "aux_logits" in forward_out and "aux_labels" in batch and self.aux_loss_weight > 0:
+            aux_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+                forward_out["aux_logits"], batch["aux_labels"]
+            )
+            losses["aux"] = aux_loss
+            total_loss = total_loss + self.aux_loss_weight * aux_loss
+
         preds = (torch.sigmoid(logits) > 0.5).int()
 
         return {
-            "loss": losses["total"],
+            "loss": total_loss,
             "losses": losses,
             "preds": preds,
             "targets": targets,

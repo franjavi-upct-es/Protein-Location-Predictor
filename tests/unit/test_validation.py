@@ -164,9 +164,7 @@ class TestValidateSplits:
     def test_accession_leakage_fails(self) -> None:
         splits = {
             "train": pd.DataFrame({"accession": ["P001", "P002"]}),
-            "val": pd.DataFrame(
-                {"accession": ["P002", "P003"]}
-            ),  # P002 leaked!
+            "val": pd.DataFrame({"accession": ["P002", "P003"]}),  # P002 leaked!
             "test": pd.DataFrame({"accession": ["P004"]}),
         }
         report = validate_splits(splits)

@@ -53,6 +53,7 @@ models
 reports/fingerprints
 benchmarks/deeploc/
 !benchmarks/deeploc/README.md
+.cache
 
 # ===========================================================================
 # Experiment tracking

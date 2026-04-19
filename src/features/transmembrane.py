@@ -31,10 +31,7 @@ logger = get_logger(__name__)
 
 def is_tmhmm_available(binary_path: str | None = None) -> bool:
     """Check if TMHMM or DeepTMHMM is installed."""
-    for cmd in [binary_path, "tmhmm", "deeptmhmm"]:
-        if cmd and shutil.which(cmd) is not None:
-            return True
-    return False
+    return any(cmd and shutil.which(cmd) is not None for cmd in [binary_path, "tmhmm", "deeptmhmm"])
 
 
 def predict_transmembrane(
@@ -74,12 +71,7 @@ def predict_transmembrane(
         )
         return np.zeros((len(sequences), 3), dtype=np.float32)
 
-    cmd = (
-        binary_path
-        or shutil.which("deeptmhmm")
-        or shutil.which("tmhmm")
-        or "tmhmm"
-    )
+    cmd = binary_path or shutil.which("deeptmhmm") or shutil.which("tmhmm") or "tmhmm"
     n = len(sequences)
 
     logger.info(f"Running TMHMM on {n} sequences...")
@@ -132,10 +124,7 @@ def predict_transmembrane(
                     features[idx, 2] = exp_aa / max(seq_len, 1)
 
             tm_count = int((features[:, 1] > 0).sum())
-            logger.info(
-                f"TMHMM complete: {tm_count} sequences "
-                "with transmembrane helices"
-            )
+            logger.info(f"TMHMM complete: {tm_count} sequences with transmembrane helices")
             return features
 
     except Exception as e:

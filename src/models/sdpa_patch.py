@@ -59,10 +59,7 @@ def patch_esm_sdpa() -> bool:
     )
     setattr(EsmModel, _PATCH_FLAG, True)
 
-    logger.info(
-        "Patched EsmModel.from_pretrained to default to "
-        "attn_implementation='sdpa'"
-    )
+    logger.info("Patched EsmModel.from_pretrained to default to attn_implementation='sdpa'")
     return True
 
 
@@ -113,8 +110,7 @@ def _esm_from_pretrained_sdpa(
     )
     if original is None:
         raise RuntimeError(
-            "ESM SDPA patch lost reference to the original "
-            "from_pretrained implementation."
+            "ESM SDPA patch lost reference to the original from_pretrained implementation."
         )
 
     kwargs.setdefault("attn_implementation", "sdpa")

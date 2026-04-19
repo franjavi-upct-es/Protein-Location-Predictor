@@ -33,8 +33,7 @@ class PredictionRequest(BaseModel):
         v = v.strip().upper()
         if not re.match(r"^[ACDEFGHIKLMNPQRSTVWYXU]+$", v):
             raise ValueError(
-                "Sequence must contain only standard amino acid characters "
-                "(ACDEFGHIKLMNPQRSTVWYXU)"
+                "Sequence must contain only standard amino acid characters (ACDEFGHIKLMNPQRSTVWYXU)"
             )
         return v
 
@@ -58,9 +57,7 @@ class BatchPredictionRequest(BaseModel):
 class LocationPrediction(BaseModel):
     """A single predicted subcellular location with confidence."""
 
-    location: str = Field(
-        ..., description="Predicted subcellular location name"
-    )
+    location: str = Field(..., description="Predicted subcellular location name")
     confidence: float = Field(
         ...,
         ge=0.0,
@@ -72,12 +69,8 @@ class LocationPrediction(BaseModel):
 class PredictionResponse(BaseModel):
     """Response for a single protein prediction."""
 
-    predictions: list[LocationPrediction] = Field(
-        ..., description="List of predicted locations"
-    )
-    sequence_length: int = Field(
-        ..., description="Length of the input sequence"
-    )
+    predictions: list[LocationPrediction] = Field(..., description="List of predicted locations")
+    sequence_length: int = Field(..., description="Length of the input sequence")
     threshold: float = Field(..., description="Confidence threshold used")
 
 

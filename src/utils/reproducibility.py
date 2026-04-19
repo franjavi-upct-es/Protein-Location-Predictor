@@ -53,10 +53,6 @@ def seed_everything(seed: int = 42, deterministic: bool = True) -> None:
                 with suppress(Exception):
                     torch.use_deterministic_algorithms(True, warn_only=True)
 
-        logger.info(
-            f"Random seed set to {seed} (determinisitc={deterministic})"
-        )
+        logger.info(f"Random seed set to {seed} (determinisitc={deterministic})")
     except ImportError:
-        logger.warning(
-            "PyTorch not installed — only Python/NumPy seeds were set."
-        )
+        logger.warning("PyTorch not installed — only Python/NumPy seeds were set.")

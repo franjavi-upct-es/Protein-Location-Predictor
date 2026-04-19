@@ -23,16 +23,12 @@ class TestParseLocationString:
         assert "Nucleus" in result
 
     def test_multiple_locations_period_separated(self) -> None:
-        result = parse_location_string(
-            "SUBCELLULAR LOCATION: Nucleus. Cytoplasm."
-        )
+        result = parse_location_string("SUBCELLULAR LOCATION: Nucleus. Cytoplasm.")
         assert "Nucleus" in result
         assert "Cytoplasm" in result
 
     def test_removes_evidence_codes(self) -> None:
-        result = parse_location_string(
-            "SUBCELLULAR LOCATION: Nucleus {ECO:0000269|PubMed:12345}"
-        )
+        result = parse_location_string("SUBCELLULAR LOCATION: Nucleus {ECO:0000269|PubMed:12345}")
         assert len(result) >= 1
         assert "{" not in result[0]
         assert "ECO" not in result[0]
@@ -47,8 +43,7 @@ class TestParseLocationString:
 
     def test_filters_topology_annotations(self) -> None:
         result = parse_location_string(
-            "SUBCELLULAR LOCATION: Membrane; "
-            "Single-pass type I membrane protein"
+            "SUBCELLULAR LOCATION: Membrane; Single-pass type I membrane protein"
         )
         assert "Membrane" in result
         # "Single-pass type I membrane protein" should be filtered

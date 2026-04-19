@@ -33,9 +33,7 @@ logger = get_logger(__name__)
 # UniProt API interaction
 # ---------------------------------------------------------------------------
 
-_DEFAULT_FIELDS = (
-    "accession,sequence,cc_subcellular_location,organism_id,organism_name"
-)
+_DEFAULT_FIELDS = "accession,sequence,cc_subcellular_location,organism_id,organism_name"
 
 
 def _get_next_link(headers: dict) -> str | None:
@@ -92,15 +90,10 @@ def _download_organism(
 
         all_pages.append(page_df)
         total += len(page_df)
-        logger.debug(
-            f"  Organism {organism_id}: {total} proteins downloaded so far"
-        )
+        logger.debug(f"  Organism {organism_id}: {total} proteins downloaded so far")
 
         if max_results and total >= max_results:
-            logger.info(
-                f"  Reached max_results limit ({max_results})"
-                f" for organism {organism_id}"
-            )
+            logger.info(f"  Reached max_results limit ({max_results}) for organism {organism_id}")
             break
 
         next_url = _get_next_link(dict(response.headers))
@@ -148,8 +141,7 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     if missing:
         available = set(renamed.columns)
         raise ValueError(
-            f"Missing required columns after renaiming: {missing}. "
-            f"Available columns: {available}"
+            f"Missing required columns after renaiming: {missing}. Available columns: {available}"
         )
 
     return renamed
@@ -185,11 +177,7 @@ def download_proteins(
     all_dfs: list[pd.DataFrame] = []
 
     for source in sources:
-        organism_id = (
-            source["organism_id"]
-            if isinstance(source, dict)
-            else source.organism_id
-        )
+        organism_id = source["organism_id"] if isinstance(source, dict) else source.organism_id
         reviewed = (
             source.get("reviewed", True)
             if isinstance(source, dict)
@@ -221,8 +209,7 @@ def download_proteins(
         logger.info(f"Removed {dupes} duplicate accessions")
 
     logger.info(
-        f"Download complete: {len(combined)} unique proteins "
-        f"from {len(sources)} organism(s)"
+        f"Download complete: {len(combined)} unique proteins from {len(sources)} organism(s)"
     )
 
     # Save raw data
@@ -242,9 +229,7 @@ def download_proteins(
 
 def main() -> None:
     """Entry point for the download CLI command."""
-    parser = argparse.ArgumentParser(
-        description="Download protein data from UniProt."
-    )
+    parser = argparse.ArgumentParser(description="Download protein data from UniProt.")
     parser.add_argument(
         "--max-results",
         type=int,

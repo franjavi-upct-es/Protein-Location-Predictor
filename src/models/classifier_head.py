@@ -100,9 +100,7 @@ class ClassifierHead(nn.Module):
         return cast(torch.Tensor, self.network(x))
 
     @classmethod
-    def from_config(
-        cls, cfg: DotDict, input_dim: int, num_classes: int
-    ) -> ClassifierHead:
+    def from_config(cls, cfg: DotDict, input_dim: int, num_classes: int) -> ClassifierHead:
         """
         Create a ClassifierHead from configuration.
 
