@@ -211,6 +211,7 @@ try:
             self.num_workers = training_cfg.get("num_workers", 4)
             self.pin_memory = training_cfg.get("pin_memory", True)
             self.use_length_bucketing = training_cfg.get("use_length_bucketing", False)
+            self.use_balanced_sampling = training_cfg.get("use_balanced_sampling", False)
             self.length_bucket_jitter = training_cfg.get("length_bucket_jitter", 0.05)
             backbone_max_length = cfg.model.backbone.get("max_position_embeddings", 1024)
             requested_max_length = training_cfg.get("max_sequence_length")
@@ -326,12 +327,38 @@ try:
 
         def train_dataloader(self) -> DataLoader:
             assert self.train_dataset is not None
+
+            if self.use_balanced_sampling:
+                from src.data.samplers import BalancedMultilabelBatchSampler
+
+                # Build the multi-hot label matrix from the dataset
+                num_classes = len(self.label_list)
+                label_to_idx = {lbl: i for i, lbl in enumerate(self.label_list)}
+                n = len(self.train_dataset)
+                labels_matrix = np.zeros((n, num_classes), dtype=np.uint8)
+                for row_idx, locs in enumerate(self.train_dataset.locations):
+                    for loc in locs:
+                        if loc in label_to_idx:
+                            labels_matrix[row_idx, label_to_idx[loc]] = 1
+
+                seed = self.cfg.project.get("seed", 42)
+                balanced_batch_sampler = BalancedMultilabelBatchSampler(
+                    labels=labels_matrix, batch_size=self.batch_size, seed=seed
+                )
+                return DataLoader(
+                    self.train_dataset,
+                    batch_sampler=balanced_batch_sampler,
+                    num_workers=self.num_workers,
+                    pin_memory=self.pin_memory,
+                    collate_fn=dynamic_padding_collate,
+                )
+
             if self.use_length_bucketing:
                 from src.data.samplers import LengthBucketBatchSampler
 
                 lengths = [len(seq) for seq in self.train_dataset.sequences]
                 seed = self.cfg.project.get("seed", 42)
-                batch_sampler = LengthBucketBatchSampler(
+                length_bucket_sampler = LengthBucketBatchSampler(
                     lengths=lengths,
                     batch_size=self.batch_size,
                     shuffle=True,
@@ -341,7 +368,7 @@ try:
                 )
                 return DataLoader(
                     self.train_dataset,
-                    batch_sampler=batch_sampler,
+                    batch_sampler=length_bucket_sampler,
                     num_workers=self.num_workers,
                     pin_memory=self.pin_memory,
                     collate_fn=dynamic_padding_collate,

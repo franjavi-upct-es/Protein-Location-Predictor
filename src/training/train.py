@@ -228,21 +228,31 @@ def _tune_and_save_thresholds(
     model: ProteinLocalizationModule,
     dm: ProteinDataModule,
 ) -> None:
-    """Run a threshold sweep on the val set and persist the result."""
-    import numpy as np
-    from torch import sigmoid
+    """
+    Run threshold tuning + temperature calibration on the val set.
 
+    Persists both ``thresholds.json`` and ``temperatures.json`` next to
+    the checkpoint. The Predictor will pick them up automatically at
+    inference time.
+    """
+    import numpy as np
+
+    from src.evaluation.calibration import (
+        apply_temperatures,
+        fit_temperatures,
+        save_temperatures,
+    )
     from src.evaluation.threshold_tuning import (
         save_thresholds,
         tune_thresholds,
     )
 
-    logger.info("Tuning per-class thresholds on the validation set...")
+    logger.info("Tuning per-class thresholds and temperatures on the val set...")
     dm.setup("fit")
     val_loader = dm.val_dataloader()
 
     model.eval()
-    all_probs = []
+    all_logits = []
     all_targets = []
     device = next(model.parameters()).device
     with torch.no_grad():
@@ -257,15 +267,22 @@ def _tune_and_save_thresholds(
                 attention_mask=attention_mask,
                 external_features=ext,
             )
-            all_probs.append(sigmoid(logits).cpu().numpy())
+            all_logits.append(logits.float().cpu().numpy())
             all_targets.append(batch["labels"].numpy())
 
-    probabilities = np.concatenate(all_probs, axis=0)
-    targets = np.concatenate(all_targets, axis=0).astype(int)
+    logits_arr = np.concatenate(all_logits, axis=0)
+    targets_arr = np.concatenate(all_targets, axis=0).astype(int)
 
-    thresholds = tune_thresholds(probabilities, targets, model.label_list)
-    out_path = resolve_path(cfg, "paths.models_dir") / "checkpoints" / "thresholds.json"
-    save_thresholds(thresholds, out_path)
+    ckpt_dir = resolve_path(cfg, "paths.models_dir") / "checkpoints"
+
+    # 1. Fit temperatures first (calibrates probabilities)
+    temperatures = fit_temperatures(logits_arr, targets_arr, label_list=model.label_list)
+    save_temperatures(temperatures, ckpt_dir / "temperatures.json")
+
+    # 2. Tune thresholds on the *calibrated* probabilities
+    calibrated_probs = apply_temperatures(logits_arr, temperatures)
+    thresholds = tune_thresholds(calibrated_probs, targets_arr, model.label_list)
+    save_thresholds(thresholds, ckpt_dir / "thresholds.json")
 
 
 # ---------------------------------------------------------------------------

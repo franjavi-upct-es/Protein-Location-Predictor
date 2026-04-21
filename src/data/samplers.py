@@ -29,6 +29,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 
 import numpy as np
+import torch
 from torch.utils.data import Sampler
 
 from src.utils.logging import get_logger
@@ -155,6 +156,133 @@ class LengthBucketBatchSampler(Sampler[list[int]]):
 
         self._epoch += 1
         yield from batches
+
+    def __len__(self) -> int:
+        return self._n_batches
+
+
+class BalancedMultilabelBatchSampler(Sampler[list[int]]):
+    """
+    Yield batches that guarantee positive examples for rare classes.
+
+    Each batch is filled in two phases:
+
+    1. **Rare-class injection.** For every class that has fewer than
+       ``min_positives_per_batch`` positives in the dataset, the sampler
+       picks one positive sample of that class and adds it to the batch.
+    2. **Random fill.** The rest of the batch is filled by sampling
+       uniformly from the remaining samples (without replacement within
+       the same batch, with replacement across batches).
+
+    This is the standard recipe for imbalanced multi-label problems and
+    is complementary to focal loss: focal loss says "pay more attention
+    when this class appears", the sampler ensures it actually appears.
+
+    Args:
+        labels: Multi-hot label matrix of shape ``(N, C)``. Use 1 for
+            positive, 0 for negative. Can be a numpy array or torch tensor.
+        batch_size: Number of samples per batch.
+        n_batches_per_epoch: How many batches to yield per epoch. If
+            None, defaults to ``len(labels) // batch_size``.
+        rare_class_threshold: A class is "rare" if its positive count
+            is below ``rare_class_threshold * len(labels) / num_classes``.
+            Default 0.5 means classes with less than half the average
+            count are treated as rare.
+        seed: Base RNG seed.
+    """
+
+    def __init__(
+        self,
+        labels: np.ndarray | Sequence[Sequence[int]] | torch.Tensor,
+        batch_size: int,
+        n_batches_per_epoch: int | None = None,
+        rare_class_threshold: float = 0.5,
+        seed: int = 42,
+    ) -> None:
+        if batch_size < 1:
+            raise ValueError(f"batch_size must be >= 1, go {batch_size}")
+
+        try:
+            import torch as _torch
+
+            if isinstance(labels, _torch.Tensor):
+                labels_np = labels.detach().cpu().numpy()
+            else:
+                labels_np = np.asarray(labels)
+        except ImportError:
+            labels_np = np.asarray(labels)
+
+        if labels_np.ndim != 2:
+            raise ValueError(f"labels must be 2D (N, C), got shape {labels_np.shape}")
+
+        self.labels = labels_np.astype(np.uint8)
+        self.batch_size = int(batch_size)
+        self.seed = int(seed)
+        self._epoch = 0
+
+        n_samples, n_classes = self.labels.shape
+        per_class_counts = self.labels.sum(axis=0)
+        avg = n_samples / max(1, n_classes)
+        threshold = avg * rare_class_threshold
+
+        # Identify rare classes and pre-compute their positive index lists
+        self.rare_classes: list[int] = []
+        self.positives_per_class: dict[int, np.ndarray] = {}
+        for c in range(n_classes):
+            positives = np.where(self.labels[:, c] == 1)[0]
+            if len(positives) > 0 and per_class_counts[c] < threshold:
+                self.rare_classes.append(c)
+                self.positives_per_class[c] = positives
+
+        self._n_batches = (
+            int(n_batches_per_epoch)
+            if n_batches_per_epoch is not None
+            else max(1, n_samples // self.batch_size)
+        )
+
+        logger.info(
+            f"BalancedMultilabelBatchSampler: {n_samples} samples, "
+            f"{n_classes} classes, {len(self.rare_classes)} rare classes "
+            f"(threshold={threshold:.1f}), batch_size={self.batch_size}, "
+            f"n_batches={self._n_batches}"
+        )
+
+    def set_epoch(self, epoch: int) -> None:
+        self._epoch = int(epoch)
+
+    def __iter__(self) -> Iterator[list[int]]:
+        rng = np.random.default_rng(self.seed + self._epoch)
+        n_samples = len(self.labels)
+        all_indices = np.arange(n_samples)
+
+        for _ in range(self._n_batches):
+            batch: list[int] = []
+            seen: set[int] = set()
+
+            # Phase 1: rare-class injection
+            for c in self.rare_classes:
+                if len(batch) >= self.batch_size:
+                    break
+                positives = self.positives_per_class[c]
+                # Pick a random positive that isn't already in the batch
+                candidate = int(rng.choice(positives))
+                if candidate not in seen:
+                    batch.append(candidate)
+                    seen.add(candidate)
+
+            # Phase 2: random fill
+            remaining = self.batch_size - len(batch)
+            if remaining > 0:
+                pool = np.setdiff1d(all_indices, np.fromiter(seen, dtype=np.int64))
+                if len(pool) >= remaining:
+                    fill = rng.choice(pool, size=remaining, replace=False)
+                else:
+                    fill = rng.choice(pool, size=remaining, replace=True)
+                batch.extend(int(i) for i in fill)
+
+            yield batch
+
+        self._epoch += 1
 
     def __len__(self) -> int:
         return self._n_batches

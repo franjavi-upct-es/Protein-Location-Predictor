@@ -315,6 +315,97 @@ split file mtime+size)`. A re-download of the splits invalidates the
   `deeploc-benchmark`, `comparison-report`, `baselines` (runs both
   baselines back-to-back).
 
+### Sprint 7 — Modeling Improvements (in progress)
+
+#### Added
+
+- **Light attention pooling** in `src/models/pooling.py`. A trainable
+  pooling layer that learns to weight tokens before averaging,
+  following the DeepLoc 2.0 formulation. Costs ~hidden_dim parameters
+  (a single linear projection) and is initialized to be near-uniform
+  so the model starts close to mean pooling. Wired into
+  `ProteinLocalizationModule` as a fourth pooling strategy
+  (`model.pooling: "light_attention"`). Tests in
+  `tests/unit/test_pooling.py` cover shape, padding mask handling,
+  gradient flow, and the near-uniform initialization invariant.
+
+- **Multi-task auxiliary heads** for joint prediction of signal
+  peptide presence and transmembrane helix presence as auxiliary
+  targets. New module `src/data/aux_targets.py` implements cheap
+  hydrophobicity-based heuristics so the multi-task path works
+  without requiring SignalP / TMHMM to be installed. The
+  `ProteinLocalizationModule` grows an optional auxiliary linear head
+  attached to the pooled embeddings, and the loss is a weighted sum of
+  the main focal/hierarchical loss and a BCE loss on the aux targets.
+  Opt-in via `multi_task.enabled: true` in the config. Tests in
+  `tests/unit/test_aux_targets.py`.
+
+- **Balanced multi-label batch sampler** in `src/data/samplers.py`.
+  Identifies rare classes (those with fewer than `rare_class_threshold *
+average` positives) and guarantees that every training batch
+  contains at least one positive of each rare class. Complementary to
+  focal loss. Opt-in via `training.use_balanced_sampling: true`. Wired
+  into `ProteinDataModule.train_dataloader` ahead of the existing
+  `LengthBucketBatchSampler`. Tests in
+  `tests/unit/test_balanced_sampler.py` verify rare-class injection,
+  batch uniqueness, and epoch-aware reshuffling.
+
+- **Per-class temperature scaling** in `src/evaluation/calibration.py`.
+  Calibrates the model's probability outputs by fitting one
+  temperature scalar per class on the validation set, minimizing BCE
+  via a coarse grid search followed by golden-section refinement (no
+  scipy dependency). Persisted as `models/checkpoints/temperatures.json`
+  next to the threshold file. The training script now fits both
+  temperatures _and_ per-class thresholds, in that order, so threshold
+  tuning operates on calibrated probabilities. The `Predictor` loads
+  `temperatures.json` at startup and applies it before sigmoid in
+  every `predict()` call. Tests in `tests/unit/test_calibration.py`.
+
+- **Sequence chunking for long-protein inference** in
+  `src/serving/chunking.py`. New `split_into_chunks` and
+  `aggregate_logits` utilities, with three aggregation strategies:
+  `mean` (default), `max`, and `weighted`. The `Predictor` now
+  exposes `chunk_long_sequences` and `chunk_overlap` parameters; when
+  enabled, sequences longer than `max_length` are split into
+  overlapping windows, run through the model independently, and the
+  per-chunk logits are mean-pooled before applying calibration and
+  thresholds. Recovers C-terminal information that the previous code
+  silently truncated. Tests in `tests/unit/test_chunking.py` verify
+  full coverage, overlap correctness, and aggregation arithmetic.
+
+- **Sprint 7 ablation harness** in
+  `src/evaluation/ablation_harness.py`. Runs the trainer with six
+  configurations (baseline, light_attention, multi_task,
+  balanced_sampling, length_bucketing, all_on), captures the test-set
+  metrics from each, and writes a single Markdown report at
+  `reports/ablations/sprint-7-ablation.md` with one row per
+  configuration. Per-run outputs are isolated in
+  `reports/ablations/<tag>/` so they don't overwrite each other, and
+  partial results are persisted incrementally so a crash mid-sweep
+  doesn't lose progress. Available as `make ablation` (3 epochs per
+  config) or `make ablation-full` (10 epochs per config).
+
+#### Changed
+
+- Pydantic config schema (`src/utils/config_schema.py`) extended with:
+  - `model.pooling`: now accepts `"light_attention"` in addition to
+    the existing strategies.
+  - `model.pooling_dropout`: new field for the LightAttentionPooler
+    dropout (default 0.1).
+  - `multi_task`: new top-level section with `enabled` and `loss_weight`.
+  - `training.use_balanced_sampling`: new boolean flag.
+- `ProteinLocalizationModule.forward` now returns the main task logits
+  for backward compatibility, but internally delegates to a new
+  `forward_with_aux` method that returns both main and auxiliary
+  logits. The signature of `forward` is unchanged.
+- The post-training threshold tuning step in `train.py` now also fits
+  per-class temperatures and persists them to
+  `models/checkpoints/temperatures.json`. Threshold tuning runs on
+  calibrated probabilities, which gives more meaningful thresholds.
+- The `Predictor` now loads `temperatures.json` and `thresholds.json`
+  automatically at startup if they exist alongside the checkpoint, and
+  uses them in `predict()` and `predict_batch()`.
+
 ## [1.0.0] - Previous version
 
 - Yeast-only data from UniProt

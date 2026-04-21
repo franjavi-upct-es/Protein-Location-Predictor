@@ -8,7 +8,7 @@
         quality clean download process split train serve docker-build \
 				docker-run hw-detect vram-estimate qlora-smoke sdpa-smoke smoke \
 				auto-batch-size linear-probe xgboost-baseline deeploc-benchmark \
-				comparison-report baselines lock
+				comparison-report baselines lock ablation ablation-full
 
 # ---------------------------------------------------------------------------
 # Help
@@ -181,3 +181,13 @@ comparison-report: ## Build the Sprint 6 comparison Markdown report
 	uv run python -m src.evaluation.comparison_report
 
 baselines: linear-probe xgboost-baseline ## Run all baselines
+
+# ---------------------------------------------------------------------------
+# Modeling improvements
+# ---------------------------------------------------------------------------
+
+ablation: ## Run the Sprint 7 ablation harness (3 epochs per config)
+	uv run python -m src.evaluation.ablation_harness
+
+ablation-full: ## Run the Sprint 7 ablation harness with 10 epochs per config
+	uv run python -m src.evaluation.ablation_harness --epochs 10

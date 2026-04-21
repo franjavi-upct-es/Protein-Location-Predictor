@@ -125,6 +125,48 @@ class TestComputeAllExternalFeatures:
         result = compute_all_external_features(SAMPLE_SEQUENCES, cfg)
         assert result.shape == (3, 0)
 
+    def test_all_enabled_concatenates_features_in_fixed_order(self, monkeypatch) -> None:
+        from src.data.external_features import compute_all_external_features
+        from src.utils.config import DotDict
+
+        monkeypatch.setattr(
+            "src.features.biophysical.compute_biophysical_features",
+            lambda sequences, cfg: np.array([[1.0], [2.0], [3.0]], dtype=np.float32),
+        )
+        monkeypatch.setattr(
+            "src.features.signal_peptide.predict_signal_peptides",
+            lambda sequences, cfg: np.array(
+                [[10.0, 11.0], [12.0, 13.0], [14.0, 15.0]],
+                dtype=np.float32,
+            ),
+        )
+        monkeypatch.setattr(
+            "src.features.transmembrane.predict_transmembrane",
+            lambda sequences, cfg: np.array(
+                [[20.0, 21.0, 22.0], [23.0, 24.0, 25.0], [26.0, 27.0, 28.0]],
+                dtype=np.float32,
+            ),
+        )
+
+        cfg = DotDict.from_dict(
+            {
+                "features": {
+                    "biophysical": {
+                        "enabled": True,
+                        "properties": ["molecular_weight"],
+                    },
+                    "signal_peptide": {"enabled": True},
+                    "transmembrane": {"enabled": True},
+                }
+            }
+        )
+
+        result = compute_all_external_features(SAMPLE_SEQUENCES, cfg)
+
+        assert result.shape == (3, 6)
+        assert result.dtype == np.float32
+        assert np.allclose(result[0], [1.0, 10.0, 11.0, 20.0, 21.0, 22.0])
+
 
 class TestGetExternalFeatureDim:
     """Tests for feature dimension calculation."""

@@ -276,6 +276,7 @@ class TrainingSection(BaseModel):
     num_workers: int = Field(default=4, ge=0)
     pin_memory: bool = True
     use_length_bucketing: bool = False
+    use_balanced_sampling: bool = False
     length_bucket_jitter: float = Field(default=0.05, ge=0.0, le=1.0)
     auto_batch_size: bool = False
     precision: Literal["bf16-mixed", "16-mixed", "32", "16", "bf16"] = "bf16-mixed"

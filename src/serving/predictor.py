@@ -17,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
+import numpy as np
 import torch
 
 from src.utils.config import DotDict
@@ -52,6 +53,8 @@ class Predictor:
         threshold: float = 0.5,
         top_k: int = 3,
         max_length: int = 1024,
+        chunk_long_sequences: bool = False,
+        chunk_overlap: int = 128,
     ) -> None:
         self.model = model
         self.tokenizer = tokenizer
@@ -61,9 +64,13 @@ class Predictor:
         self.threshold = threshold
         self.top_k = top_k
         self.max_length = max_length
+        self.chunk_long_sequences = chunk_long_sequences
+        self.chunk_overlap = chunk_overlap
 
         # Per-class thresholds (None means use the global threshold)
         self.per_class_thresholds: dict[str, float] | None = None
+        # Per-class temperature calibration
+        self.temperatures: list[float] | None = None
 
         self.model.eval()
         self.model.to(device)
@@ -129,6 +136,11 @@ class Predictor:
         thresholds_path = Path(checkpoint_path).parent / "thresholds.json"
         per_class_thresholds = load_thresholds(thresholds_path)
 
+        from src.evaluation.calibration import load_temperatures
+
+        temperatures_path = Path(checkpoint_path).parent / "temperatures.json"
+        temperatures = load_temperatures(temperatures_path)
+
         predictor = cls(
             model=model,
             tokenizer=tokenizer,
@@ -142,6 +154,11 @@ class Predictor:
         if per_class_thresholds is not None:
             predictor.per_class_thresholds = per_class_thresholds
             logger.info(f"Loaded {len(per_class_thresholds)} per-class thresholds")
+
+        if temperatures is not None:
+            predictor.temperatures = temperatures
+            logger.info(f"Loaded {len(temperatures)} per-class temperatures")
+
         return predictor
 
     @torch.no_grad()
@@ -164,8 +181,43 @@ class Predictor:
             sorted by confidence descending. Only locations above
             threshold are included, up to top_k.
         """
-        batch_predictions = self.predict_batch([sequence], threshold, top_k)
-        return cast(list[dict[str, Any]], batch_predictions[0])
+        # Sliding-window inference for long sequences
+        if self.chunk_long_sequences and len(sequence) > self.max_length:
+            return cast(
+                list[dict[str, Any]],
+                self._predict_long(sequence, threshold, top_k),
+            )
+
+        external_features = self._compute_external_features([sequence])
+        ext = external_features[:1] if external_features is not None else None
+
+        encoding = self.tokenizer(
+            sequence,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=self.max_length,
+        )
+
+        input_ids = encoding["input_ids"].to(self.device)
+        attention_mask = encoding["attention_mask"].to(self.device)
+
+        # Forward pass
+        logits = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            external_features=ext,
+        )
+
+        if self.temperatures is not None:
+            from src.evaluation.calibration import apply_temperatures
+
+            logits_np = logits.float().cpu().numpy()
+            probabilities = apply_temperatures(logits_np, self.temperatures)[0]
+        else:
+            probabilities = torch.sigmoid(logits).cpu().numpy()[0]
+
+        return self._build_results(probabilities, threshold, top_k)
 
     def _compute_external_features(
         self,
@@ -188,42 +240,6 @@ class Predictor:
 
         return torch.tensor(features, dtype=torch.float32, device=self.device)
 
-    def _format_predictions(
-        self,
-        probabilities: Any,
-        threshold: float,
-        top_k: int,
-    ) -> list[dict[str, Any]]:
-        """Convert class probabilities into the public prediction format."""
-        results: list[dict[str, Any]] = []
-        for label, prob in zip(self.label_list, probabilities, strict=True):
-            class_threshold = (
-                self.per_class_thresholds.get(label, threshold)
-                if self.per_class_thresholds is not None
-                else threshold
-            )
-            if prob >= class_threshold:
-                results.append(
-                    {
-                        "location": label,
-                        "confidence": round(float(prob), 4),
-                    }
-                )
-
-        results.sort(key=lambda x: x["confidence"], reverse=True)
-        results = results[:top_k]
-
-        if not results:
-            best_idx = int(probabilities.argmax())
-            results = [
-                {
-                    "location": self.label_list[best_idx],
-                    "confidence": round(float(probabilities[best_idx]), 4),
-                }
-            ]
-
-        return results
-
     @torch.no_grad()
     def predict_batch(
         self,
@@ -242,8 +258,8 @@ class Predictor:
         Returns:
             List of prediction lists (one per sequence).
         """
-        threshold = threshold or self.threshold
-        top_k = top_k or self.top_k
+        threshold = self.threshold if threshold is None else threshold
+        top_k = self.top_k if top_k is None else top_k
 
         if not sequences:
             return []
@@ -272,10 +288,101 @@ class Predictor:
                 attention_mask=attention_mask,
                 external_features=ext,
             )
-            probabilities = torch.sigmoid(logits).cpu().numpy()[0]
-            outputs.append(self._format_predictions(probabilities, threshold, top_k))
+            if self.temperatures is not None:
+                from src.evaluation.calibration import apply_temperatures
+
+                logits_np = logits.float().cpu().numpy()
+                probabilities = apply_temperatures(logits_np, self.temperatures)[0]
+            else:
+                probabilities = torch.sigmoid(logits).cpu().numpy()[0]
+            outputs.append(self._build_results(probabilities, threshold, top_k))
 
         return outputs
+
+    @torch.no_grad()
+    def _predict_long(
+        self,
+        sequence: str,
+        threshold: float | None,
+        top_k: int | None,
+    ) -> list[dict[str, Any]]:
+        """Predict on a long sequence by chunking + aggregating logits."""
+        import numpy as np
+
+        from src.serving.chunking import (
+            aggregate_logits,
+            split_into_chunks,
+        )
+
+        chunks = split_into_chunks(
+            sequence,
+            window_size=self.max_length,
+            overlap=self.chunk_overlap,
+        )
+        logger.info(f"Long sequence ({len(sequence)} aa) → {len(chunks)} chunks")
+
+        chunk_logits: list[np.ndarray] = []
+        for chunk in chunks:
+            encoded = self.tokenizer(
+                chunk,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=self.max_length,
+            )
+            input_ids = encoded["input_ids"].to(self.device)
+            attention_mask = encoded["attention_mask"].to(self.device)
+            logits = self.model(input_ids=input_ids, attention_mask=attention_mask)
+            chunk_logits.append(logits.float().cpu().numpy()[0])
+
+        agg = aggregate_logits(chunk_logits, strategy="mean")
+
+        # Apply temperature scaling if available, then threshold
+        if self.temperatures is not None:
+            from src.evaluation.calibration import apply_temperatures
+
+            probabilities = apply_temperatures(agg[np.newaxis, :], self.temperatures)[0]
+        else:
+            probabilities = 1.0 / (1.0 + np.exp(-agg))
+
+        return self._build_results(probabilities, threshold, top_k)
+
+    def _build_results(
+        self,
+        probabilities: np.ndarray,
+        threshold: float | None,
+        top_k: int | None,
+    ) -> list[dict[str, Any]]:
+        """Apply thresholds and top-k to a probability vector."""
+        threshold = self.threshold if threshold is None else threshold
+        top_k = self.top_k if top_k is None else top_k
+
+        results: list[dict[str, str | float]] = []
+        for label, prob in zip(self.label_list, probabilities, strict=True):
+            class_threshold = (
+                self.per_class_thresholds.get(label, threshold)
+                if self.per_class_thresholds is not None
+                else threshold
+            )
+            if prob >= class_threshold:
+                results.append(
+                    {
+                        "location": label,
+                        "confidence": round(float(prob), 4),
+                    }
+                )
+        results.sort(key=lambda x: x["confidence"], reverse=True)
+        results = results[:top_k]
+
+        if not results:
+            best_idx = int(probabilities.argmax())
+            results = [
+                {
+                    "location": self.label_list[best_idx],
+                    "confidence": round(float(probabilities[best_idx]), 4),
+                }
+            ]
+        return results
 
     def warmup(self) -> None:
         """Run a dummy prediction to warm ip the model (precompile, cache)."""

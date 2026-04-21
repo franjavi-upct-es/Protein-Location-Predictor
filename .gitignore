@@ -41,6 +41,7 @@ Thumbs.db
 .coverage
 htmlcov/
 reports/coverage/
+reports/ablations/
 
 # ===========================================================================
 # Data and models (large files — use DVC or Git LFS if needed)

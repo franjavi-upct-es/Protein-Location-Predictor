@@ -42,6 +42,14 @@ training:
   # because the length distribution is heavy-tailed. Validation and
   # test loaders are unaffected (they use deterministic ordering).
   use_length_bucketing: false
+
+  # Balanced multi-label sampling: guarantees that each batch contains
+  # at least one positive example for each rare class. Use it for
+  # severely imbalanced setups (e.g. when Golgi has < 1% of samples).
+  # Mutually exclusive with use_length_bucketing — if both are true,
+  # balanced sampling wins.
+  use_balanced_sampling: false
+
   length_bucket_jitter: 0.05 # 0 = strict sort, larger = more diversity
 
   # Hardware-aware settings (auto-configured, can be overridden)
