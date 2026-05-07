@@ -216,8 +216,9 @@ def _build_trainer(cfg: DotDict, hw_profile: object) -> pl.Trainer:
         log_every_n_steps=exp_cfg.get("log_every_n_steps", 10),
         deterministic=training_cfg.get("deterministic", True),
         enable_progress_bar=True,
-        accelerator="auto",
-        devices=1,
+        accelerator=training_cfg.get("accelerator", "auto"),
+        devices=training_cfg.get("devices", "auto"),
+        strategy=training_cfg.get("strategy", "auto"),
     )
 
     return trainer

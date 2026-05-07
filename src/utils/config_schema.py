@@ -282,6 +282,9 @@ class TrainingSection(BaseModel):
     precision: Literal["bf16-mixed", "16-mixed", "32", "16", "bf16"] = "bf16-mixed"
     gradient_checkpointing: bool = True
     cpu_offload: bool = False
+    devices: int | Literal["auto"] = "auto"
+    strategy: str | None = "auto"
+    accelerator: Literal["auto", "gpu", "cpu", "tpu", "mps"] = "auto"
     experiment: ExperimentSection
     deterministic: bool = True
 
