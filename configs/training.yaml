@@ -8,7 +8,7 @@ training:
   max_epochs: 30
   patience: 5 # Early stopping patience
   gradient_clip_val: 1.0
-  accumulate_grad_batches: 4 # Effective batch = batch_size × 4
+  accumulate_grad_batches: 2 # Effective batch = batch_size × num_devices × accum (32×2×2 = 128)
 
   # Optimizer
   optimizer:
@@ -26,9 +26,8 @@ training:
 
   # Batch size is auto-determined by hardware detection,
   # but you can set a manual override here.
-  batch_size: null # null = auto-detect from VRAM
-  max_sequence_length: null # null = auto-detect from hardware profile
-
+  batch_size: 32
+  max_sequence_length: 512
   # Empirical batch-size auto-tuning. When true and a CUDA GPU is
   # available, training.batch_size is overridden by the largest size
   # that survives a forward+backward probe with the configured model
@@ -41,7 +40,7 @@ training:
   # same batch to minimize padding waste. Recommended for protein data
   # because the length distribution is heavy-tailed. Validation and
   # test loaders are unaffected (they use deterministic ordering).
-  use_length_bucketing: false
+  use_length_bucketing: true
 
   # Balanced multi-label sampling: guarantees that each batch contains
   # at least one positive example for each rare class. Use it for
@@ -54,7 +53,7 @@ training:
 
   # Hardware-aware settings (auto-configured, can be overridden)
   precision: "bf16-mixed" # "bf16-mixed" | "16-mixed" | "32"
-  gradient_checkpointing: true
+  gradient_checkpointing: false
   cpu_offload: false # Enable if VRAM is critically tight
 
   # Experiment tracking
