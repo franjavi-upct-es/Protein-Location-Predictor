@@ -206,6 +206,16 @@ def _build_trainer(cfg: DotDict, hw_profile: object) -> pl.Trainer:
     # Resolve precision from hardware profile
     precision = getattr(hw_profile, "precision", training_cfg.get("precision", "32"))
 
+    # Custom batch samplers (length bucketing / balanced sampling) are
+    # DDP-aware and partition data per rank internally. Lightning would
+    # otherwise try to wrap them with a DistributedSampler, which fails
+    # because it assumes a vanilla BatchSampler(sampler, bs, drop_last)
+    # signature.
+    use_custom_sampler = bool(
+        training_cfg.get("use_length_bucketing", False)
+        or training_cfg.get("use_balanced_sampling", False)
+    )
+
     trainer = pl.Trainer(
         max_epochs=training_cfg.get("max_epochs", 30),
         precision=precision,
@@ -219,6 +229,7 @@ def _build_trainer(cfg: DotDict, hw_profile: object) -> pl.Trainer:
         accelerator=training_cfg.get("accelerator", "auto"),
         devices=training_cfg.get("devices", "auto"),
         strategy=training_cfg.get("strategy", "auto"),
+        use_distributed_sampler=not use_custom_sampler,
     )
 
     return trainer

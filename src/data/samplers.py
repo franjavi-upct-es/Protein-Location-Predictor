@@ -84,32 +84,53 @@ class LengthBucketBatchSampler(Sampler[list[int]]):
         seed: int = 42,
         drop_last: bool = False,
         jitter_fraction: float = 0.05,
+        num_replicas: int | None = None,
+        rank: int | None = None,
     ) -> None:
         if batch_size < 1:
             raise ValueError(f"batch_size must be >= 1, got {batch_size}")
         if not 0.0 <= jitter_fraction <= 1.0:
             raise ValueError(f"jitter_fraction must be in [0, 1], got {jitter_fraction}")
 
+        # DDP awareness: auto-detect from torch.distributed when not given.
+        if num_replicas is None or rank is None:
+            try:
+                import torch.distributed as dist
+
+                if dist.is_available() and dist.is_initialized():
+                    if num_replicas is None:
+                        num_replicas = dist.get_world_size()
+                    if rank is None:
+                        rank = dist.get_rank()
+            except ImportError:
+                pass
+        self.num_replicas = int(num_replicas) if num_replicas is not None else 1
+        self.rank = int(rank) if rank is not None else 0
+        if not 0 <= self.rank < self.num_replicas:
+            raise ValueError(f"rank {self.rank} out of range for num_replicas {self.num_replicas}")
+
         self.lengths = np.asarray(lengths, dtype=np.int64)
         self.batch_size = int(batch_size)
         self.shuffle = bool(shuffle)
         self.seed = int(seed)
-        self.drop_last = bool(drop_last)
+        self.drop_last = bool(drop_last) or self.num_replicas > 1
         self.jitter_fraction = float(jitter_fraction)
         self._epoch = 0
 
         if len(self.lengths) == 0:
             raise ValueError("LengthBucketBatchSampler received empty lengths")
 
-        n_full = len(self.lengths) // self.batch_size
+        global_bs = self.batch_size * self.num_replicas
+        n_full = len(self.lengths) // global_bs
         self._n_batches = (
-            n_full if self.drop_last else n_full + (1 if len(self.lengths) % self.batch_size else 0)
+            n_full if self.drop_last else n_full + (1 if len(self.lengths) % global_bs else 0)
         )
 
         logger.info(
             f"LengthBucketBatchSampler: {len(self.lengths)} samples, "
             f"batch_size={self.batch_size}, n_batches={self._n_batches}, "
-            f"shuffle={self.shuffle}, drop_last={self.drop_last}"
+            f"shuffle={self.shuffle}, drop_last={self.drop_last}, "
+            f"num_replicas={self.num_replicas}, rank={self.rank}"
         )
 
     # ------------------------------------------------------------------
@@ -137,19 +158,32 @@ class LengthBucketBatchSampler(Sampler[list[int]]):
         else:
             sort_keys = self.lengths.astype(np.float64)
 
-        # Stable sort so equal-length samples preserve dataset order
+        # Stable sort so equal-length samples preserve dataset order.
+        # rng is seeded identically across DDP ranks, so all ranks produce
+        # the same sorted ordering and the same downstream permutation.
         sorted_indices = np.argsort(sort_keys, kind="stable")
 
-        # Chop into batches
+        # Group consecutive sorted indices into "global batches" sized for
+        # the whole world (batch_size × num_replicas). Each rank then takes
+        # its contiguous slice of every global batch. This keeps per-step
+        # sequence lengths balanced across ranks (DDP all-reduce waits on
+        # the slowest rank, so length similarity at each step matters).
+        global_bs = self.batch_size * self.num_replicas
         batches: list[list[int]] = []
-        for start in range(0, n, self.batch_size):
-            chunk = sorted_indices[start : start + self.batch_size]
-            if self.drop_last and len(chunk) < self.batch_size:
+        for start in range(0, n, global_bs):
+            global_chunk = sorted_indices[start : start + global_bs]
+            if len(global_chunk) < global_bs and (self.drop_last or self.num_replicas > 1):
+                # Drop the trailing partial global batch under DDP to keep
+                # rank counts identical (required by all_reduce).
                 continue
-            batches.append([int(i) for i in chunk])
+            my_slice = global_chunk[self.rank * self.batch_size : (self.rank + 1) * self.batch_size]
+            if len(my_slice) == 0:
+                continue
+            batches.append([int(i) for i in my_slice])
 
         # Shuffle batch order so the model does not see monotonically
-        # increasing lengths over an epoch
+        # increasing lengths over an epoch. Same rng → same permutation
+        # on every rank, so step t aligns across ranks.
         if self.shuffle:
             order = rng.permutation(len(batches))
             batches = [batches[i] for i in order]
