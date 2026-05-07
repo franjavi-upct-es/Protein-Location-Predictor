@@ -26,7 +26,7 @@ training:
 
   # Batch size is auto-determined by hardware detection,
   # but you can set a manual override here.
-  batch_size: 32
+  batch_size: 24
   max_sequence_length: 512
   # Empirical batch-size auto-tuning. When true and a CUDA GPU is
   # available, training.batch_size is overridden by the largest size
