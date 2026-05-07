@@ -23,10 +23,11 @@ By default the harness uses a reduced training schedule
 (``max_epochs=3``) so the full sweep finishes in a reasonable time.
 Override with ``--epochs N`` for a more thorough comparison.
 
-Usage:
-    uv run python -m src.evaluation.ablation_harness
-    uv run python -m src.evaluation.ablation_harness --epochs 10
-    uv run python -m src.evaluation.ablation_harness --only light_attention,multi_task
+Usage::
+
+    > uv run python -m src.evaluation.ablation_harness
+    > uv run python -m src.evaluation.ablation_harness --epochs 10
+    > uv run python -m src.evaluation.ablation_harness --only light_attention,multi_task
 """
 
 from __future__ import annotations

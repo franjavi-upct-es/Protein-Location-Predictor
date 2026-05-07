@@ -3,11 +3,18 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import numpy as np
+import torch
 
 from src.evaluation.metrics import (
+    collect_predictions,
     compute_metrics,
     format_classification_report,
+    generate_report,
+    plot_confusion_matrix,
+    plot_per_class_f1,
 )
 
 LABEL_LIST = ["Cytoplasm", "Membrane", "Nucleus"]
@@ -106,3 +113,108 @@ class TestFormatClassificationReport:
         assert "Recall" in report
         assert "F1" in report
         assert "Hamming loss" in report
+
+
+class TestCollectPredictions:
+    def test_collect_predictions_with_external_features(self):
+        class MockModel(torch.nn.Module):
+            def forward(self, input_ids, attention_mask, external_features=None):
+                # Returns high logits for class 0 if external_features present, low otherwise
+                batch_size = input_ids.shape[0]
+                logits = torch.full((batch_size, 3), -10.0)
+                if external_features is not None:
+                    logits[:, 0] = 10.0
+                return logits
+
+        model = MockModel()
+        dataloader = [
+            {
+                "input_ids": torch.zeros((2, 5)),
+                "attention_mask": torch.ones((2, 5)),
+                "labels": torch.tensor([[1, 0, 0], [0, 1, 0]]),
+                "external_features": torch.ones((2, 2)),
+            }
+        ]
+
+        result = collect_predictions(model, dataloader, device="cpu", threshold=0.5)
+
+        assert "probabilities" in result
+        assert "predictions" in result
+        assert "targets" in result
+
+        np.testing.assert_allclose(result["probabilities"][:, 0], 1.0, atol=1e-3)
+        assert np.all(result["predictions"][:, 0] == 1)
+
+    def test_collect_predictions_no_external_features(self):
+        class MockModel(torch.nn.Module):
+            def forward(self, input_ids, attention_mask, external_features=None):
+                batch_size = input_ids.shape[0]
+                logits = torch.full((batch_size, 3), 10.0)
+                logits[:, 1:] = -10.0
+                return logits
+
+        model = MockModel()
+        model.eval = MagicMock()
+
+        dataloader = [
+            {
+                "input_ids": torch.zeros((2, 5)),
+                "attention_mask": torch.ones((2, 5)),
+                "labels": torch.tensor([[1, 0, 0], [0, 1, 0]]),
+            }
+        ]
+
+        result = collect_predictions(model, dataloader, device="cpu", threshold=0.5)
+
+        assert np.all(result["predictions"][:, 0] == 1)
+        assert np.all(result["predictions"][:, 1:] == 0)
+
+
+class TestPlotting:
+    def test_plot_per_class_f1(self, tmp_path):
+        targets = np.array([[1, 0, 0], [0, 1, 0]])
+        predictions = np.array([[1, 0, 0], [0, 1, 0]])
+        metrics = compute_metrics(predictions, targets, LABEL_LIST)
+
+        output_file = tmp_path / "f1.png"
+        plot_per_class_f1(metrics, LABEL_LIST, output_file)
+
+        assert output_file.exists()
+
+    def test_plot_confusion_matrix(self, tmp_path):
+        targets = np.array([[1, 0, 0], [0, 1, 0]])
+        predictions = np.array([[1, 0, 0], [0, 1, 0]])
+
+        output_file = tmp_path / "cm.png"
+        plot_confusion_matrix(predictions, targets, LABEL_LIST, output_file)
+
+        assert output_file.exists()
+
+
+class TestGenerateReport:
+    def test_generate_report_success(self, tmp_path, monkeypatch):
+        targets = np.array([[1, 0, 0], [0, 1, 0]])
+        predictions = np.array([[1, 0, 0], [0, 1, 0]])
+        metrics = compute_metrics(predictions, targets, LABEL_LIST)
+
+        generate_report(metrics, predictions, targets, LABEL_LIST, tmp_path)
+
+        assert (tmp_path / "evaluation_report.txt").exists()
+        assert (tmp_path / "per_class_metrics.csv").exists()
+        assert (tmp_path / "figures" / "f1_scores_by_class.png").exists()
+        assert (tmp_path / "figures" / "confusion_matrix.png").exists()
+
+    def test_generate_report_import_error(self, tmp_path, monkeypatch):
+        targets = np.array([[1, 0, 0], [0, 1, 0]])
+        predictions = np.array([[1, 0, 0], [0, 1, 0]])
+        metrics = compute_metrics(predictions, targets, LABEL_LIST)
+
+        def mock_plot(*args, **kwargs):
+            raise ImportError("Simulated missing matplotlib")
+
+        monkeypatch.setattr("src.evaluation.metrics.plot_per_class_f1", mock_plot)
+
+        generate_report(metrics, predictions, targets, LABEL_LIST, tmp_path)
+
+        assert (tmp_path / "evaluation_report.txt").exists()
+        # The exception is caught and logged, the function should return normally
