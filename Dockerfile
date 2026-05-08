@@ -51,6 +51,7 @@ FROM deps AS production
 # Copy the rest of the project
 COPY src/ src/
 COPY configs/ configs/
+COPY README.md ./
 
 # Install the project itself (now that source is available)
 RUN uv sync --frozen --no-dev
