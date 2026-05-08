@@ -33,14 +33,14 @@ class TestBuildBnbConfigValidation:
 
     def test_unknown_compute_dtype_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Pretending CUDA + bnb are present, an unknown dtype must raise."""
-        monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+        monkeypatch.setattr("src.models.esm_lora.assert_quantization_runtime_supported", lambda: None)
         if not _bitsandbytes_available():
             pytest.skip("bitsandbytes not installed")
         with pytest.raises(ValueError, match="Unknown compute_dtype"):
             _build_bnb_config({"method": "nf4", "compute_dtype": "float128"})
 
     def test_unknown_method_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+        monkeypatch.setattr("src.models.esm_lora.assert_quantization_runtime_supported", lambda: None)
         if not _bitsandbytes_available():
             pytest.skip("bitsandbytes not installed")
         with pytest.raises(ValueError, match="Unknown quantization method"):
