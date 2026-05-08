@@ -8,7 +8,7 @@ Headline metrics across baselines, the trained model, and the external DeepLoc 2
 |---|---:|---:|---:|---:|---:|---:|
 | Linear probe (frozen ESM-2) | 0.511 | 0.656 | 0.423 | 0.828 | 0.330 | 0.137 |
 | XGBoost (frozen ESM-2, v1.0 replica) | 0.765 | 0.833 | 0.869 | 0.702 | 0.661 | 0.051 |
-| Trained model (this project) | not available | not available | not available | not available | not available | not available |
+| Trained model (this project) | 0.792 | 0.817 | 0.842 | 0.750 | 0.651 | 0.055 |
 
 ## External benchmark — DeepLoc 2.0
 
@@ -18,6 +18,20 @@ Evaluated on **2 of 3 sequences** from the packaged DeepLoc 2.0 demo set, using 
 | Model | f1_macro | f1_micro | precision_macro | recall_macro | exact_match_ratio | hamming_loss |
 |---|---:|---:|---:|---:|---:|---:|
 | Trained model on DeepLoc test set | 0.143 | 0.333 | 0.143 | 0.143 | 0.000 | 0.286 |
+
+## Trained model — per-class metrics
+
+| Class | Precision | Recall | F1 | Support |
+|---|---:|---:|---:|---:|
+| Cytoplasm | 0.809 | 0.794 | 0.801 | 2045 |
+| Endoplasmic Reticulum | 0.781 | 0.702 | 0.739 | 446 |
+| Golgi Apparatus | 0.766 | 0.704 | 0.733 | 307 |
+| Membrane | 0.876 | 0.814 | 0.844 | 1836 |
+| Mitochondrion | 0.900 | 0.780 | 0.836 | 528 |
+| Nucleus | 0.894 | 0.767 | 0.825 | 1893 |
+| Peroxisome | 0.875 | 0.724 | 0.792 | 29 |
+| Secreted/Extracellular | 0.862 | 0.861 | 0.861 | 545 |
+| Vacuole | 0.821 | 0.604 | 0.696 | 53 |
 
 ## Linear probe — per-class (test)
 
@@ -51,7 +65,7 @@ Evaluated on **2 of 3 sequences** from the packaged DeepLoc 2.0 demo set, using 
 
 ### Files consumed
 
-- Linear probe: `/home/pyros05/Escritorio/Protein-Location-Predictor/reports/baselines/linear_probe.json` (found)
-- XGBoost: `/home/pyros05/Escritorio/Protein-Location-Predictor/reports/baselines/xgboost_baseline.json` (found)
-- Trained model: `/home/pyros05/Escritorio/Protein-Location-Predictor/reports/evaluation_report.json` (missing)
-- DeepLoc benchmark: `/home/pyros05/Escritorio/Protein-Location-Predictor/reports/benchmarks/deeploc.json` (found)
+- Linear probe: `reports/baselines/linear_probe.json` (found)
+- XGBoost: `reports/baselines/xgboost_baseline.json` (found)
+- Trained model: `reports/evaluation_report.json` (found)
+- DeepLoc benchmark: `benchmarks/deeploc.json` (found)

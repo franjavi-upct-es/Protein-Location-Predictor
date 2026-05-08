@@ -404,6 +404,42 @@ def train(cfg: DotDict) -> None:
     except Exception as e:
         logger.warning(f"Threshold tuning failed: {e}")
 
+    # 10. Generate full evaluation report on the test set
+    try:
+        from src.evaluation.metrics import (
+            collect_predictions,
+            compute_metrics,
+            generate_report,
+        )
+        from src.serving.predictor import Predictor
+
+        logger.info("Generating full evaluation report on the test set...")
+        ckpt_dir = resolve_path(cfg, "paths.models_dir") / "checkpoints"
+        ckpt_path = best_path if best_path else str(ckpt_dir / "last.ckpt")
+
+        if Path(ckpt_path).exists():
+            # Use the Predictor abstraction to ensure inference matches deployment
+            predictor = Predictor.from_checkpoint(ckpt_path, cfg)
+            dm.setup("test")
+            test_loader = dm.test_dataloader()
+
+            results = collect_predictions(predictor.model, test_loader, device=predictor.device)
+            metrics = compute_metrics(results["predictions"], results["targets"], label_list)
+
+            reports_dir = resolve_path(cfg, "paths.reports_dir")
+            generate_report(
+                metrics,
+                results["predictions"],
+                results["targets"],
+                label_list,
+                reports_dir,
+            )
+        else:
+            logger.warning(f"No checkpoint found at {ckpt_path}, skipping final report.")
+
+    except Exception as e:
+        logger.warning(f"Final evaluation report generation failed: {e}")
+
     logger.info("Training complete.")
 
 

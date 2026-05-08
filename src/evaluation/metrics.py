@@ -317,6 +317,8 @@ def generate_report(
         label_list: Ordered list of class names.
         output_dir: Directory to save report files.
     """
+    import json
+
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     figures_dir = output_dir / "figures"
@@ -329,6 +331,12 @@ def generate_report(
         f.write(report)
     logger.info(f"Classification report saved to {report_path}")
     print(report)
+
+    # JSON report (for machine consumption)
+    json_path = output_dir / "evaluation_report.json"
+    with open(json_path, "w") as f:
+        json.dump(metrics, f, indent=2, sort_keys=True)
+    logger.info(f"JSON metrics saved to {json_path}")
 
     # Metrics CSV
     per_class_df = pd.DataFrame(metrics["per_class"]).T

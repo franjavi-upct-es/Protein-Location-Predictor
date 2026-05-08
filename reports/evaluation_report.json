@@ -1,0 +1,77 @@
+{
+  "overall": {
+    "exact_match_ratio": 0.6509796740523713,
+    "f1_macro": 0.7920061588601244,
+    "f1_micro": 0.8169567278391007,
+    "f1_weighted": 0.8169008759807659,
+    "hamming_loss": 0.0549960324726851,
+    "precision_macro": 0.8424632243912586,
+    "recall_macro": 0.7498385289868081,
+    "total_samples": 5461
+  },
+  "per_class": {
+    "Cytoplasm": {
+      "f1": 0.8010858835143139,
+      "precision": 0.8086696562032885,
+      "predicted_positive": 2007,
+      "recall": 0.7936430317848411,
+      "support": 2045
+    },
+    "Endoplasmic Reticulum": {
+      "f1": 0.7390791027154664,
+      "precision": 0.7805486284289277,
+      "predicted_positive": 401,
+      "recall": 0.7017937219730942,
+      "support": 446
+    },
+    "Golgi Apparatus": {
+      "f1": 0.733446519524618,
+      "precision": 0.7659574468085106,
+      "predicted_positive": 282,
+      "recall": 0.7035830618892508,
+      "support": 307
+    },
+    "Membrane": {
+      "f1": 0.843829426715617,
+      "precision": 0.8762463343108504,
+      "predicted_positive": 1705,
+      "recall": 0.8137254901960784,
+      "support": 1836
+    },
+    "Mitochondrion": {
+      "f1": 0.8356997971602435,
+      "precision": 0.8995633187772926,
+      "predicted_positive": 458,
+      "recall": 0.7803030303030303,
+      "support": 528
+    },
+    "Nucleus": {
+      "f1": 0.8254690164866402,
+      "precision": 0.8935384615384615,
+      "predicted_positive": 1625,
+      "recall": 0.7670364500792393,
+      "support": 1893
+    },
+    "Peroxisome": {
+      "f1": 0.7924528301886793,
+      "precision": 0.875,
+      "predicted_positive": 24,
+      "recall": 0.7241379310344828,
+      "support": 29
+    },
+    "Secreted/Extracellular": {
+      "f1": 0.8613406795224977,
+      "precision": 0.8621323529411765,
+      "predicted_positive": 544,
+      "recall": 0.8605504587155963,
+      "support": 545
+    },
+    "Vacuole": {
+      "f1": 0.6956521739130435,
+      "precision": 0.8205128205128205,
+      "predicted_positive": 39,
+      "recall": 0.6037735849056604,
+      "support": 53
+    }
+  }
+}

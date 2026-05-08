@@ -98,23 +98,26 @@ if ckpt is None:
 
 print(f'Evaluating checkpoint: {ckpt}')
 
-import torch
-import pandas as pd
 from src.serving.predictor import Predictor
-from src.data.datasets import ProteinDataset, dynamic_padding_collate
+from src.data.datasets import ProteinDataModule, dynamic_padding_collate
 from src.evaluation.metrics import collect_predictions, compute_metrics, generate_report
 from torch.utils.data import DataLoader
 
 predictor = Predictor.from_checkpoint(ckpt, cfg)
 label_list = predictor.label_list
 
-# Load test split
-splits_dir = resolve_path(cfg, 'paths.splits_dir')
-test_df = pd.read_csv(splits_dir / 'test.csv')
-test_df['locations'] = test_df['locations_str'].apply(lambda s: s.split('|') if isinstance(s, str) else [])
-
-test_ds = ProteinDataset(test_df, predictor.tokenizer, label_list, max_length=predictor.max_length)
-test_dl = DataLoader(test_ds, batch_size=4, shuffle=False, collate_fn=dynamic_padding_collate)
+# Load test split through the same DataModule used for training so optional
+# external features are included when the checkpoint expects them.
+dm = ProteinDataModule(cfg, label_list=label_list, tokenizer=predictor.tokenizer)
+dm.setup(stage='test')
+assert dm.test_dataset is not None
+eval_batch_size = min(int(cfg.get('inference', {}).get('batch_size', 4)), 4)
+test_dl = DataLoader(
+    dm.test_dataset,
+    batch_size=eval_batch_size,
+    shuffle=False,
+    collate_fn=dynamic_padding_collate,
+)
 
 results = collect_predictions(predictor.model, test_dl, device=predictor.device)
 metrics = compute_metrics(results['predictions'], results['targets'], label_list)
