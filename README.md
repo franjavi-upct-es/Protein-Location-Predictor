@@ -126,6 +126,34 @@ For an 8 GB GPU (e.g., RTX 5060), the default configuration uses:
 
 Run `make hw-detect` to see your resolved profile, or `make vram-estimate` for a memory breakdown.
 
+## Results
+
+### Model Performance vs. Baselines
+
+The v2.0 model (ESM-2 + LoRA) significantly outperforms the linear probe baseline and achieves competitive results compared to the v1.0 XGBoost replica while providing better recall across rare classes.
+
+| Model | F1 (Macro) | F1 (Micro) | Precision (Macro) | Recall (Macro) | Exact Match |
+|-------|------------|------------|-------------------|----------------|-------------|
+| **v2.0 (LoRA Fine-tuned)** | **0.792** | 0.817 | 0.842 | 0.750 | 0.651 |
+| XGBoost (v1.0 replica) | 0.765 | **0.833** | **0.869** | 0.702 | **0.661** |
+| Linear Probe | 0.511 | 0.656 | 0.423 | **0.828** | 0.330 |
+
+### Per-Class Performance (v2.0)
+
+| Class | Precision | Recall | F1 | Support |
+|-------|-----------|--------|----|---------|
+| Cytoplasm | 0.809 | 0.794 | 0.801 | 2045 |
+| Membrane | 0.876 | 0.814 | 0.844 | 1836 |
+| Nucleus | 0.894 | 0.767 | 0.825 | 1893 |
+| Secreted/Extracellular | 0.862 | 0.861 | 0.861 | 545 |
+| Mitochondrion | 0.900 | 0.780 | 0.836 | 528 |
+| Endoplasmic Reticulum | 0.781 | 0.702 | 0.739 | 446 |
+| Golgi Apparatus | 0.766 | 0.704 | 0.733 | 307 |
+| Peroxisome | 0.875 | 0.724 | 0.792 | 29 |
+| Vacuole | 0.821 | 0.604 | 0.696 | 53 |
+
+Detailed visualizations including the [Confusion Matrix](reports/figures/confusion_matrix.png) and [F1 Scores by Class](reports/figures/f1_scores_by_class.png) can be found in the `reports/` directory.
+
 ## Development
 
 ```bash
